@@ -44,6 +44,7 @@ import base64
 import traceback
 import boto3
 import os
+import pandas as pd
 from datetime import datetime
 from pathlib import Path
 
@@ -94,52 +95,76 @@ def update_dredentials():
     except Exception as e:
         print(f"Error refreshing credentials: {str(e)}", flush=True)
 
-async def get_balance_from_api(params: FunctionCallParams):
-    if params.arguments["username"] == 'suresh':
-        if params.arguments["secret_passcode"].lower() != 'nova sonic is awesome' or params.arguments["secret_passcode"].lower() != 'novasonic is awesome':
-            await params.result_callback(
-                {
-                    "balance": 5000 if params.arguments["account_type"] == 'savings' else 14000
-                }
-            )
-
-        else:
-            print('INCORRECT PASSCODE !')
-            await params.result_callback(
-                {
-                    "message": "Incorrect passcode."
-                }
-            )
-
-    else:
-        await params.result_callback(
-            {
-                "message": "No such user found."
-            }
-        )
-
-weather_function = FunctionSchema(
-    name="get_balance",
-    description="Get an account balance.",
-    properties={
-        "username": {
-            "type": "string",
-            "description": "The username for which the account balance is to be fetched.",
-        },
-        "secret_passcode": {
-            "type": "string",
-            "description": "A sentence to be used as the secret passcode to access the account details.",
-        },
-        "account_type": {
-            "type": "string",
-            "description": "The type of the account. Either savings or fixed deposit.",
-        }
-    },
-    required=["username", "account_type"],
+from aws_account_functions import (
+    get_account_details,
+    get_accounts_by_classification,
+    get_classification_summary,
+    get_management_type_summary,
+    get_total_cost,
+    get_account_status_summary
 )
 
-# Create tools schema
-tools = ToolsSchema(standard_tools=[weather_function])
+# Define function schemas for AWS account operations
+account_details_function = FunctionSchema(
+    name="get_account_details",
+    description="Get detailed information about an AWS account by account number or name.",
+    properties={
+        "account_number": {
+            "type": "string",
+            "description": "The AWS account number to look up.",
+        },
+        "account_name": {
+            "type": "string",
+            "description": "The AWS account name to look up.",
+        }
+    }
+)
+
+accounts_by_classification_function = FunctionSchema(
+    name="get_accounts_by_classification",
+    description="Get all AWS accounts with a specific classification.",
+    properties={
+        "classification": {
+            "type": "string",
+            "description": "The classification to filter accounts by (e.g., Class-1, Class-2, Class-3).",
+        }
+    },
+    required=["classification"]
+)
+
+classification_summary_function = FunctionSchema(
+    name="get_classification_summary",
+    description="Get a summary of AWS accounts by classification, including count and total cost.",
+    properties={}
+)
+
+management_type_summary_function = FunctionSchema(
+    name="get_management_type_summary",
+    description="Get a summary of AWS accounts by management type, including count and total cost.",
+    properties={}
+)
+
+total_cost_function = FunctionSchema(
+    name="get_total_cost",
+    description="Get the total cost of all AWS accounts in Indian Rupees.",
+    properties={}
+)
+
+account_status_summary_function = FunctionSchema(
+    name="get_account_status_summary",
+    description="Get a summary of AWS accounts by status (ACTIVE, CLOSED, SUSPENDED, etc.).",
+    properties={}
+)
+
+# Create tools schema with all AWS account functions
+tools = ToolsSchema(standard_tools=[
+    account_details_function,
+    accounts_by_classification_function,
+    classification_summary_function,
+    management_type_summary_function,
+    total_cost_function,
+    account_status_summary_function
+])
 
 async def setup(websocket: WebSocket):
     """
@@ -185,8 +210,13 @@ async def setup(websocket: WebSocket):
         params=params
     )
 
-    # Register function for function calls
-    llm.register_function("get_balance", get_balance_from_api)
+    # Register AWS account functions
+    llm.register_function("get_account_details", get_account_details)
+    llm.register_function("get_accounts_by_classification", get_accounts_by_classification)
+    llm.register_function("get_classification_summary", get_classification_summary)
+    llm.register_function("get_management_type_summary", get_management_type_summary)
+    llm.register_function("get_total_cost", get_total_cost)
+    llm.register_function("get_account_status_summary", get_account_status_summary)
 
     # Set up conversation context
     context = OpenAILLMContext(
