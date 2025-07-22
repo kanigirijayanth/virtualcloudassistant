@@ -35,7 +35,7 @@ export const awsConfig = {
             userPoolClientId: '3f7bapxxxxxxxxxxxxx34u4eh',
             userPoolId: 'ap-south-1_xxxxxxxx',
             identityPoolId: 'ap-south-1:1111111-aaaa-bbbb-cccc-23hsjfk33412',
-            region: 'ap-south-1'
+            region: 'us-east-1'
         }
     }
 }
@@ -46,7 +46,7 @@ export const awsConfig = {
  * @constant
  * @type {string}
  */
-export const apiKey = "Your-own-long-secret-text-to-access-the-api"
+export const apiKey = "sk_live_51NzQWHSIANER2vP8kTGkZQBfwwQCzVQT"
 
 /**
  * WebSocket endpoint URL
