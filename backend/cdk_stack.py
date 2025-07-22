@@ -311,7 +311,7 @@ class CdkStack(Stack):
 
         # cdk-nag suppressions.
         cdk_nag.NagSuppressions.add_resource_suppressions_by_path(self, 
-            f'/{self.stack_name}/VirtualBankingAssistantCluster/Resource',
+            f'/{self.stack_name}/VirtualCloudAssistantCluster/Resource',
             [
                 {
                     'id': 'AwsSolutions-ECS4',
@@ -321,7 +321,7 @@ class CdkStack(Stack):
         )
 
         cdk_nag.NagSuppressions.add_resource_suppressions_by_path(self, 
-            f'/{self.stack_name}/VirtualBankingAssistantTaskRole/Resource',
+            f'/{self.stack_name}/VirtualCloudAssistantTaskRole/Resource',
             [
                 {
                     'id': 'AwsSolutions-IAM4',
@@ -331,7 +331,7 @@ class CdkStack(Stack):
         )
 
         cdk_nag.NagSuppressions.add_resource_suppressions_by_path(self, 
-            f'/{self.stack_name}/VirtualBankingAssistantTaskRole/DefaultPolicy/Resource',
+            f'/{self.stack_name}/VirtualCloudAssistantTaskRole/DefaultPolicy/Resource',
             [
                 {
                     'id': 'AwsSolutions-IAM5',
@@ -341,7 +341,7 @@ class CdkStack(Stack):
         )
 
         cdk_nag.NagSuppressions.add_resource_suppressions_by_path(self, 
-            f'/{self.stack_name}/VirtualBankingAssistantNLB/Resource',
+            f'/{self.stack_name}/VirtualCloudAssistantNLB/Resource',
             [
                 {
                     'id': 'AwsSolutions-ELB2',
@@ -351,7 +351,7 @@ class CdkStack(Stack):
         )
 
         cdk_nag.NagSuppressions.add_resource_suppressions_by_path(self, 
-            f'/{self.stack_name}/VirtualBankingAssistantUserpool/Resource',
+            f'/{self.stack_name}/VirtualCloudAssistantUserpool/Resource',
             [
                 {
                     'id': 'AwsSolutions-COG3',
@@ -361,7 +361,7 @@ class CdkStack(Stack):
         )
 
         cdk_nag.NagSuppressions.add_resource_suppressions_by_path(self, 
-            f'/{self.stack_name}/VirtualBankingAssistantBucket/Resource',
+            f'/{self.stack_name}/VirtualCloudAssistantBucket/Resource',
             [
                 {
                     'id': 'AwsSolutions-S1',
