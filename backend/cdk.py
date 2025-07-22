@@ -48,7 +48,7 @@ cdk.Aspects.of(app).add(AwsSolutionsChecks(verbose=True))
 
 # Create the Virtual Banking Assistant stack
 # The stack can be environment-agnostic (deploy anywhere) or environment-specific
-CdkStack(app, "VirtualBankingAssistantCdkStack",
+CdkStack(app, "VirtualClouldAssistantCdkStack",
     # If you don't specify 'env', this stack will be environment-agnostic.
     # Account/Region-dependent features and context lookups will not work,
     # but a single synthesized template can be deployed anywhere.
@@ -59,7 +59,7 @@ CdkStack(app, "VirtualBankingAssistantCdkStack",
         region=os.getenv('CDK_DEFAULT_REGION')
     ),
 
-    description='Virtual Banking Assistant (uksb-ybsvnefrsb)'
+    description='Virtual Cloud Assistant'
 
     # For explicit account/region deployment, uncomment and modify:
     # env=cdk.Environment(account='123456789012', region='us-east-1'),
