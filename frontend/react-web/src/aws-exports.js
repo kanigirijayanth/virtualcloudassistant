@@ -54,7 +54,7 @@ export const apiKey = "sk_live_51NzQWHSIANER2vP8kTGkZQBfwwQCzVQT"
  * @constant
  * @type {string}
  */
-export const apiUrl = "wss://Virtua-Virtu-4GhTWenUDZZ6-c664c38aa8533be8.elb.us-east-1.amazonaws.com/ws"
+export const apiUrl = "ws://Virtua-Virtu-4GhTWenUDZZ6-c664c38aa8533be8.elb.us-east-1.amazonaws.com/ws"
 
 /**
  * Avatar .glb model filename
