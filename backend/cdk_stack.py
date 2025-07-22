@@ -76,7 +76,8 @@ class CdkStack(Stack):
         vpc = ec2.Vpc.from_vpc_attributes(self, "VirtualCloudAssistantVPC",
             vpc_id=vpc_config['vpcId'],
             availability_zones=vpc_config['availabilityZones'],
-            public_subnet_ids=vpc_config['publicSubnetIds']
+            public_subnet_ids=vpc_config['publicSubnetIds'],
+            vpc_cidr_block=vpc_config['cidr']
         )
 
         # Create ECS Cluster in existing VPC
@@ -106,9 +107,30 @@ class CdkStack(Stack):
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 actions=[
-                    "bedrock:InvokeModel"
+                    "bedrock:InvokeModel",
+                    "bedrock:InvokeAgent",
+                    "bedrock:RetrieveAgent",
+                    "bedrock:Converse",
+                    "bedrock:InvokeAgentAlias"
                 ],
-                resources=["arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-sonic-v1:0"]
+                resources=[
+                    "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-sonic-v1:0",
+                    "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-sonic-v1:*",
+                    "arn:aws:bedrock:us-east-1:*:agent/*",
+                    "arn:aws:bedrock:us-east-1:*:agent-alias/*"
+                ]
+            )
+        )
+        
+        # Add additional permissions for Bedrock runtime
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "bedrock:InvokeModel",
+                    "bedrock:InvokeModelWithResponseStream"
+                ],
+                resources=["*"]
             )
         )
 
@@ -137,19 +159,20 @@ class CdkStack(Stack):
         )
         container.add_port_mappings(ecs.PortMapping(container_port=container_port, protocol=ecs.Protocol.TCP))
 
-        # ECS Fargate Service in private subnets
+        # ECS Fargate Service in public subnets with public IP
         service = ecs.FargateService(self, "VirtualCloudAssistantFargateService",
             cluster=cluster,
             task_definition=task_def,
-            assign_public_ip=False,
+            assign_public_ip=True,  # Assign public IP to access AWS services
             desired_count=1,
             enable_execute_command=True,
             circuit_breaker=ecs.DeploymentCircuitBreaker(rollback=True),
             security_groups=[security_group],
+            health_check_grace_period=Duration.seconds(300),  # Increased from 120 to 300 seconds
             vpc_subnets=ec2.SubnetSelection(
                 subnets=[
-                    ec2.Subnet.from_subnet_id(self, "TaskSubnet1", vpc_config['privateSubnetIds'][0]),
-                    ec2.Subnet.from_subnet_id(self, "TaskSubnet2", vpc_config['privateSubnetIds'][1])
+                    ec2.Subnet.from_subnet_id(self, "TaskSubnet1", vpc_config['publicSubnetIds'][0]),
+                    ec2.Subnet.from_subnet_id(self, "TaskSubnet2", vpc_config['publicSubnetIds'][1])
                 ]
             )
         )
@@ -179,8 +202,8 @@ class CdkStack(Stack):
                 path="/health",
                 healthy_threshold_count=2,
                 unhealthy_threshold_count=3,
-                interval=Duration.seconds(30),
-                timeout=Duration.seconds(10),
+                interval=Duration.seconds(60),  # Increased from 30 to 60 seconds
+                timeout=Duration.seconds(30),   # Increased from 10 to 30 seconds
                 healthy_http_codes="200-399"
             )
         )

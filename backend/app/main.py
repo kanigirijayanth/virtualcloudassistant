@@ -117,7 +117,8 @@ account_details_function = FunctionSchema(
             "type": "string",
             "description": "The AWS account name to look up.",
         }
-    }
+    },
+    required=[]  # Neither parameter is required, user can provide either one
 )
 
 accounts_by_classification_function = FunctionSchema(
@@ -135,25 +136,29 @@ accounts_by_classification_function = FunctionSchema(
 classification_summary_function = FunctionSchema(
     name="get_classification_summary",
     description="Get a summary of AWS accounts by classification, including count and total cost.",
-    properties={}
+    properties={},
+    required=[]
 )
 
 management_type_summary_function = FunctionSchema(
     name="get_management_type_summary",
     description="Get a summary of AWS accounts by management type, including count and total cost.",
-    properties={}
+    properties={},
+    required=[]
 )
 
 total_cost_function = FunctionSchema(
     name="get_total_cost",
     description="Get the total cost of all AWS accounts in Indian Rupees.",
-    properties={}
+    properties={},
+    required=[]
 )
 
 account_status_summary_function = FunctionSchema(
     name="get_account_status_summary",
     description="Get a summary of AWS accounts by status (ACTIVE, CLOSED, SUSPENDED, etc.).",
-    properties={}
+    properties={},
+    required=[]
 )
 
 # Create tools schema with all AWS account functions
