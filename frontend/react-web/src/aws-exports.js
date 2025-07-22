@@ -32,9 +32,9 @@
 export const awsConfig = {
     Auth: {
         Cognito: {
-            userPoolClientId: '3f7bapxxxxxxxxxxxxx34u4eh',
-            userPoolId: 'ap-south-1_xxxxxxxx',
-            identityPoolId: 'ap-south-1:1111111-aaaa-bbbb-cccc-23hsjfk33412',
+            userPoolClientId: '265nb5jjei4fj1isvta0e09pi1',
+            userPoolId: 'us-east-1_lGwTpWK8X',
+            identityPoolId: 'us-east-1:a65035ed-f579-4fa8-8708-e8472dcf6728',
             region: 'us-east-1'
         }
     }
@@ -54,7 +54,7 @@ export const apiKey = "sk_live_51NzQWHSIANER2vP8kTGkZQBfwwQCzVQT"
  * @constant
  * @type {string}
  */
-export const apiUrl = "wss://vca.example.acme/ws"
+export const apiUrl = "wss://Virtua-Virtu-4GhTWenUDZZ6-c664c38aa8533be8.elb.us-east-1.amazonaws.com/ws"
 
 /**
  * Avatar .glb model filename
