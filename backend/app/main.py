@@ -12,10 +12,10 @@
 # **********************************************************************************************************************/
 
 """
-FastAPI WebSocket Server for Virtual Banking Assistant
+FastAPI WebSocket Server for Virtual Cloud Assistant
 
 This module implements a WebSocket server using FastAPI that handles real-time audio communication
-between clients and an AI banking assistant powered by AWS Nova Sonic. It processes audio streams,
+between clients and an AI cloud assistant powered by AWS Nova Sonic. It processes audio streams,
 manages transcription, and coordinates responses through a pipeline architecture.
 
 Key Components:

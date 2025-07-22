@@ -14,7 +14,7 @@
 /**
  * Main Application Component
  * 
- * This is the root component of the Virtual Banking Assistant application.
+ * This is the root component of the Virtual Cloud Assistant application.
  * It handles user authentication through AWS Cognito and renders the main
  * content when authenticated.
  */
@@ -33,7 +33,7 @@ function App() {
             return (
                 <div className='d-flex flex-column justify-content-center text-center'>
                     <p className='h1'>
-                        Virtual Banking Assistant
+                        Virtual Cloud Assistant
                     </p>
                     <p className='h5 mb-5 text-secondary'>
                         Powered by Amazon Nova Sonic

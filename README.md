@@ -1,5 +1,5 @@
 # Introduction
-This is a prototype demonstrating Amazon nova sonic for a banking usecase. It displays a virtual banking assistant avatar on the screen and you can have a free form conversation with it regarding banking services. It uses a React based frontend app running in a browser, which connects to an ECS cluster behind an NLB. The backend uses Pipecat to implement the voice bot by using Amazon Nova sonic behind the scenes. Please see below for the architecture details.
+This is a prototype demonstrating Amazon nova sonic for a cloud services usecase. It displays a Virtual Cloud Assistant avatar on the screen and you can have a free form conversation with it regarding cloud services. It uses a React based frontend app running in a browser, which connects to an ECS cluster behind an NLB. The backend uses Pipecat to implement the voice bot by using Amazon Nova sonic behind the scenes. Please see below for the architecture details.
 
 # Architecture
 ![architecture](architecture.png)
@@ -122,7 +122,7 @@ NOTE: Please verify the license yourselves before downloading and using these mo
 - Update the NS records with your domain registrar to redirect the domain to Route53.
 - Add an alias A record in Route53 for the DNS name of the NLB. 
 - You may have to wait about 30 minutes for the DNS propagation
-- Update the `awsConfig` and `apiUrl` in `frontend/react-web/src/aws-exports.js` using the CDK output values. For `apiUrl`, use `wss://` as the protocol and `/ws` as the path. e.g. `"wss://vba.example.acme/ws"`
+- Update the `awsConfig` and `apiUrl` in `frontend/react-web/src/aws-exports.js` using the CDK output values. For `apiUrl`, use `wss://` as the protocol and `/ws` as the path. e.g. `"wss://vca.example.acme/ws"`
 - Build and deploy the frontend
     ```
     cd frontend/react-web
@@ -140,5 +140,5 @@ NOTE: Please verify the license yourselves before downloading and using these mo
 - Create a new user in the Userpool created by this stack using an email address.
 - Open the Cloudfront URL for the frontend in Chrome browser. (When deployed on Cloudfront)
 - Signin using the user credentials, and click on the `Enage` button in the header. Initial connection may take a few seconds.
-- Once engaged, the virtual avatar will greet you and you can start conversing with it.
+- Once engaged, the Virtual Cloud Assistant avatar will greet you and you can start conversing with it.
 - Try having a natural conversation with it. You can also try interrupting it.

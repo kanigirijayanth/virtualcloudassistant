@@ -54,7 +54,7 @@ export const apiKey = "Your-own-long-secret-text-to-access-the-api"
  * @constant
  * @type {string}
  */
-export const apiUrl = "wss://vba.example.acme/ws"
+export const apiUrl = "wss://vca.example.acme/ws"
 
 /**
  * Avatar .glb model filename
