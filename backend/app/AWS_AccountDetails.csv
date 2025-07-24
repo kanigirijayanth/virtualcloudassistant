@@ -1,125 +1,126 @@
-﻿AWS Account Number,AWS account Name,Provisioning Date,Status, Classification,Management Type,Total Cost of Account in Indian Rupees
-100942612345,AWS Project 1,31-Mar-19,ACTIVE,Class-3,Managed Services,100
-722072123460,AWS Project 2,1-Apr-19,ACTIVE,Class-3,Managed Services,300
-722072123461,AWS Project 3,2-Apr-19,ACTIVE,Class-3,Managed Services,500
-722072123462,AWS Project 4,3-Apr-19,ACTIVE,Class-3,Managed Services,700
-722072123463,AWS Project 5,4-Apr-19,ACTIVE,Class-3,Managed Services,900
-722072123464,AWS Project 6,5-Apr-19,ACTIVE,Class-3,Managed Services,1100
-722072123465,AWS Project 7,6-Apr-19,ACTIVE,Class-2,Managed Services,1300
-722072123466,AWS Project 8,7-Apr-19,ACTIVE,Class-1,Managed Services,1500
-722072123467,AWS Project 9,8-Apr-20,ACTIVE,Class-3,Managed Services,1700
-722072123468,AWS Project 10,9-Apr-20,ACTIVE,Class-2,Managed Services,1900
-722072123469,AWS Project 11,10-Apr-20,ACTIVE,Class-3,Managed Services,2100
-722072123470,AWS Project 12,11-Apr-20,ACTIVE,Class-2,Managed Services,2300
-722072123471,AWS Project 13,12-Apr-20,CLOSED,Class-3,Managed Services,2500
-722072123472,AWS Project 14,13-Apr-20,ACTIVE,Class-1,Managed Services,2700
-722072123473,AWS Project 15,14-Apr-20,ACTIVE,Class-3,Managed Services,2900
-722072123474,AWS Project 16,15-Apr-20,CLOSED,Class 3,Self Service,3100
-722072123475,AWS Project 17,16-Apr-20,ACTIVE,Class-3,Self Service,3300
-722072123476,AWS Project 18,17-Apr-20,ACTIVE,Class-1,Self Service,3500
-722072123477,AWS Project 19,18-Apr-20,ACTIVE,Class-1,Self Service,3700
-722072123478,AWS Project 20,19-Apr-20,ACTIVE,Class-2,Self Service,3900
-722072123479,AWS Project 21,20-Apr-20,ACTIVE,Class-3,Self Service,4100
-722072123480,AWS Project 22,21-Apr-20,ACTIVE,Class-3,Self Service,4300
-722072123481,AWS Project 23,22-Apr-20,CLOSED,Class-1,Self Service,4500
-722072123482,AWS Project 24,23-Apr-20,ACTIVE,Class-1,Self Service,4700
-722072123483,AWS Project 25,24-Apr-20,ACTIVE,Class-2,Self Service,4900
-722072123484,AWS Project 26,25-Apr-20,ACTIVE,Class-3,Managed Services,5100
-722072123485,AWS Project 27,26-Apr-20,ACTIVE,Class-3,Managed Services,5300
-722072123486,AWS Project 28,27-Apr-20,ACTIVE,Class-1,Self Service,5500
-722072123487,AWS Project 29,28-Apr-20,ACTIVE,Class-3,Self Service,5700
-722072123488,AWS Project 30,29-Apr-21,ACTIVE,Class-2,Self Service,5900
-722072123489,AWS Project 31,30-Apr-21,CLOSED,Class-1,Self Service,6100
-722072123490,AWS Project 32,1-May-21,ACTIVE,Class-3,Self Service,6300
-722072123491,AWS Project 33,2-May-21,ACTIVE,Class-3,Self Service,6500
-722072123492,AWS Project 34,3-May-21,ACTIVE,Class 1,Self Service,6700
-722072123493,AWS Project 35,4-May-21,ACTIVE,Class-2,Self Service,6900
-722072123494,AWS Project 36,5-May-21,ACTIVE,Class-3,Self Service,7100
-722072123495,AWS Project 37,6-May-21,ACTIVE,Class-3,Self Service,7300
-722072123496,AWS Project 38,7-May-21,CLOSED,Class-2,Self Service,7500
-722072123497,AWS Project 39,8-May-21,ACTIVE,Class-2,Self Service,7700
-722072123498,AWS Project 40,9-May-21,ACTIVE,Class-3,Self Service,7900
-722072123499,AWS Project 41,10-May-21,ACTIVE,Class-3,Self Service,8100
-722072123500,AWS Project 42,11-May-21,CLOSED,Class-3,Self Service,8300
-722072123501,AWS Project 43,12-May-21,ACTIVE,Class-3,Self Service,8500
-722072123502,AWS Project 44,13-May-21,ACTIVE,Class-2,Self Service,8700
-722072123503,AWS Project 45,14-May-21,ACTIVE,Class-2,Self Service,8900
-722072123504,AWS Project 46,15-May-21,ACTIVE,Class-3,Self Service,9100
-722072123505,AWS Project 47,16-May-21,ACTIVE,Class-3,Managed Services,9300
-722072123506,AWS Project 48,17-May-21,ACTIVE,Class-1,Managed Services,9500
-722072123507,AWS Project 49,18-May-21,CLOSED,Class-3,Self Service,9700
-722072123508,AWS Project 50,19-May-21,ACTIVE,Class-3,Self Service,9900
-722072123509,AWS Project 51,20-May-21,ACTIVE,Class-1,Self Service,10100
-722072123510,AWS Project 52,21-May-21,ACTIVE,Class-3,Self Service,10300
-722072123511,AWS Project 53,22-May-21,ACTIVE,Class-2,Self Service,10500
-722072123512,AWS Project 54,23-May-21,ACTIVE,Class-2,Self Service,10700
-722072123513,AWS Project 55,24-May-21,ACTIVE,Class-2,Self Service,10900
-722072123514,AWS Project 56,25-May-21,ACTIVE,Class-2,Self Service,11100
-722072123515,AWS Project 57,26-May-21,ACTIVE,Class-1,Self Service,11300
-722072123516,AWS Project 58,27-May-21,ACTIVE,Class-3,Self Service,11500
-722072123517,AWS Project 59,28-May-21,CLOSED,Class-3,Self Service,11700
-722072123518,AWS Project 60,29-May-21,ACTIVE,Class-2,Self Service,11900
-722072123519,AWS Project 61,30-May-21,ACTIVE,Class-1,Self Service,12100
-722072123520,AWS Project 62,31-May-21,ACTIVE,Class-3,Self Service,12300
-722072123521,AWS Project 63,1-Jun-21,CLOSED,Class-3,Self Service,12500
-722072123522,AWS Project 64,2-Jun-21,ACTIVE,Class-3,Self Service,12700
-722072123523,AWS Project 65,3-Jun-21,ACTIVE,Class-1,Self Service,12900
-722072123524,AWS Project 66,4-Jun-22,ACTIVE,Class-3,Self Service,13100
-722072123525,AWS Project 67,5-Jun-22,ACTIVE,Class-3,Self Service,13300
-722072123526,AWS Project 68,6-Jun-22,CLOSED,Class-1,Self Service,13500
-722072123527,AWS Project 69,7-Jun-22,ACTIVE,Class-2,Self Service,13700
-722072123528,AWS Project 70,8-Jun-22,ACTIVE,Class-2,Self Service,13900
-722072123529,AWS Project 71,9-Jun-22,ACTIVE,Class-3,Managed Services,14100
-722072123530,AWS Project 72,10-Jun-22,ACTIVE,Class-2,Managed Services,14300
-722072123531,AWS Project 73,11-Jun-22,ACTIVE,Class-2,Self Service,14500
-722072123532,AWS Project 74,12-Jun-22,ACTIVE,Class-2,Self Service,14700
-722072123533,AWS Project 75,13-Jun-22,ACTIVE,Class-2,Self Service,14900
-722072123534,AWS Project 76,14-Jun-22,ACTIVE,Class-2,Self Service,15100
-722072123535,AWS Project 77,15-Jun-22,ACTIVE,Class-2,Managed Services,15300
-722072123536,AWS Project 78,16-Jun-22,ACTIVE,Class-2,Managed Services,15500
-722072123537,AWS Project 79,17-Jun-22,ACTIVE,Class-3,Self Service,15700
-722072123538,AWS Project 80,18-Jun-22,ACTIVE,Class-3,Self Service,15900
-722072123539,AWS Project 81,19-Jun-22,ACTIVE,Class-3,Self Service,16100
-722072123540,AWS Project 82,20-Jun-22,ACTIVE,Class-2,Self Service,16300
-722072123541,AWS Project 83,21-Jun-22,ACTIVE,Class-2,Self Service,16500
-722072123542,AWS Project 84,22-Jun-22,SUSPENDED,Class-1,Self Service,16700
-722072123543,AWS Project 85,23-Jun-22,SUSPENDED,Class-1,Self Service,16900
-722072123544,AWS Project 86,24-Jun-22,SUSPENDED,Class-3,Managed Services,17100
-722072123545,AWS Project 87,25-Jun-22,SUSPENDED,Class-1,Self Service,17300
-722072123546,AWS Project 88,26-Jun-22,SUSPENDED,Class-1,Self Service,17500
-722072123547,AWS Project 89,27-Jun-22,CLOSED,Class-1,Self Service,17700
-722072123548,AWS Project 90,28-Jun-22,SUSPENDED,Class-2,Self Service,17900
-722072123549,AWS Project 91,29-Jun-22,SUSPENDED,Class-2,Self Service,18100
-722072123550,AWS Project 92,30-Jun-23,SUSPENDED,Class-1,Self Service,18300
-722072123551,AWS Project 93,1-Jul-23,SUSPENDED,Class-2,Self Service,18500
-722072123552,AWS Project 94,2-Jul-23,SUSPENDED,Class-1,Self Service,18700
-722072123553,AWS Project 95,3-Jul-23,SUSPENDED,Class-1,Managed Services,18900
-722072123554,AWS Project 96,4-Jul-23,SUSPENDED,Class-3,Self Service,19100
-722072123555,AWS Project 97,5-Jul-23,CLOSED,Class-1,Self Service,19300
-722072123556,AWS Project 98,6-Jul-23,SUSPENDED,Class-1,Self Service,19500
-722072123557,AWS Project 99,7-Jul-23,SUSPENDED,Class-1,Self Service,19700
-722072123558,AWS Project 100,8-Jul-23,SUSPENDED,Class-1,Self Service,19900
-722072123559,AWS Project 101,9-Jul-23,SUSPENDED,Class-1,Self Service,20100
-722072123560,AWS Project 102,10-Jul-23,SUSPENDED,Class-1,Self Service,20300
-722072123561,AWS Project 103,11-Jul-23,NOT FOUND,Class-1,Managed Services,20500
-722072123562,AWS Project 104,12-Jul-23,ACTIVE,Class-2,Self Service,20700
-722072123563,AWS Project 105,13-Jul-23,ACTIVE,Class-3,Self Service,20900
-722072123564,AWS Project 106,14-Jul-23,ACTIVE,Class-1,Self Service,21100
-722072123565,AWS Project 107,15-Jul-23,ACTIVE,Class-3,Self Service,21300
-722072123566,AWS Project 108,16-Jul-23,ACTIVE,Class-2,Self Service,21500
-722072123567,AWS Project 109,17-Jul-23,ACTIVE,Class-1,Self Service,21700
-722072123568,AWS Project 110,18-Jul-23,ACTIVE,Class-1,Self Service,21900
-722072123569,AWS Project 111,19-Jul-23,SUSPENDED,Class-1,Self Service,22100
-722072123570,AWS Project 112,20-Jul-23,SUSPENDED,Class-1,Self Service,22300
-722072123571,AWS Project 113,21-Jul-24,SUSPENDED,Class-1,Self Service,22500
-722072123572,AWS Project 114,22-Jul-24,CLOSED,Class-3,Managed Services,22700
-722072123573,AWS Project 115,23-Jul-24,SUSPENDED,Class-1,Managed Services,22900
-722072123574,AWS Project 116,24-Jul-24,SUSPENDED,Class-1,Self Service,23100
-722072123575,AWS Project 117,25-Jul-24,SUSPENDED,Class-1,Self Service,23300
-722072123576,AWS Project 118,26-Jul-24,ACTIVE,Class-1,Self service,23500
-722072123577,AWS Project 119,27-Jul-24,ACTIVE,Class-1,Self service,23700
-722072123578,AWS Project 120,28-Jul-24,ACTIVE,Class-2,Self service,23900
-722072123579,AWS Project 121,29-Jul-25,ACTIVE,Class-3,Managed Services,24100
-722072123580,AWS Project 122,30-Jul-25,CLOSED,Class-2,Managed Services,24300
-722072123581,AWS Project 123,31-Jul-25,SUSPENDED,Class-3,Self service,24500
-722072123582,AWS Project 124,1-Aug-25,ACTIVE,Class-2,Self service,24700
+﻿AWS Account Number,AWS account Name,Provisioning Date,Status, Classification,Management Type,Total Cost in Indian Rupees
+5.50559E+11,Vortex,31-Mar-19,ACTIVE,Class-3,Managed Services,100
+7.93489E+11,Beacon,1-Apr-19,ACTIVE,Class-3,Managed Services,300
+1.81791E+11,Pioneer,2-Apr-19,ACTIVE,Class-3,Managed Services,500
+8.13516E+11,Comet,3-Apr-19,ACTIVE,Class-3,Managed Services,700
+3.90779E+11,Momentum,4-Apr-19,ACTIVE,Class-3,Managed Services,900
+1.99116E+11,Trail,5-Apr-19,ACTIVE,Class-3,Managed Services,1100
+5.22729E+11,Elevate,6-Apr-19,ACTIVE,Class-2,Managed Services,1300
+9.49401E+11,Mirage,7-Apr-19,ACTIVE,Class-1,Managed Services,1500
+9.33337E+11,Scope,8-Apr-20,ACTIVE,Class-3,Managed Services,1700
+5.56183E+11,Zenith,9-Apr-20,ACTIVE,Class-2,Managed Services,1900
+3.14903E+11,Aurora,10-Apr-20,ACTIVE,Class-3,Managed Services,2100
+9.78568E+11,Odyssey,11-Apr-20,ACTIVE,Class-2,Managed Services,2300
+5.81571E+11,Impulse,12-Apr-20,CLOSED,Class-3,Managed Services,2500
+1.85467E+11,Solstice,13-Apr-20,ACTIVE,Class-1,Managed Services,2700
+2.89962E+11,Eclipse,14-Apr-20,ACTIVE,Class-3,Managed Services,2900
+3.96625E+11,Genesis,15-Apr-20,CLOSED,Class 3,Self Service,3100
+9.21145E+11,Span,16-Apr-20,ACTIVE,Class-3,Self Service,3300
+8.92341E+11,Thrive,17-Apr-20,ACTIVE,Class-1,Self Service,3500
+5.12793E+11,Catalyst,18-Apr-20,ACTIVE,Class-1,Self Service,3700
+3.81986E+11,Axis,19-Apr-20,ACTIVE,Class-2,Self Service,3900
+2.77502E+11,Vertex,20-Apr-20,ACTIVE,Class-3,Self Service,4100
+1.33191E+11,Titan,21-Apr-20,ACTIVE,Class-3,Self Service,4300
+9.02733E+11,Vertex,22-Apr-20,CLOSED,Class-1,Self Service,4500
+8.09779E+11,Helix,23-Apr-20,ACTIVE,Class-1,Self Service,4700
+8.60226E+11,Core,24-Apr-20,ACTIVE,Class-2,Self Service,4900
+5.12871E+11,Echo,25-Apr-20,ACTIVE,Class-3,Managed Services,5100
+6.90598E+11,Trek,26-Apr-20,ACTIVE,Class-3,Managed Services,5300
+1.71756E+11,Spark,27-Apr-20,ACTIVE,Class-1,Self Service,5500
+3.05721E+11,Glide,28-Apr-20,ACTIVE,Class-3,Self Service,5700
+5.38484E+11,Flash,29-Apr-21,ACTIVE,Class-2,Self Service,5900
+6.27005E+11,Glide,30-Apr-21,CLOSED,Class-1,Self Service,6100
+9.98302E+11,Comet,1-May-21,ACTIVE,Class-3,Self Service,6300
+4.55976E+11,Rise,2-May-21,ACTIVE,Class-3,Self Service,6500
+4.71814E+11,Nimbus,3-May-21,ACTIVE,Class 1,Self Service,6700
+8.20666E+11,Lyra,4-May-21,ACTIVE,Class-2,Self Service,6900
+7.78912E+11,Spectra,5-May-21,ACTIVE,Class-3,Self Service,7100
+3.57091E+11,Ignite,6-May-21,ACTIVE,Class-3,Self Service,7300
+9.83648E+11,Apollo,7-May-21,CLOSED,Class-2,Self Service,7500
+9.84367E+11,Matrix,8-May-21,ACTIVE,Class-2,Self Service,7700
+3.49524E+11,Stratus,9-May-21,ACTIVE,Class-3,Self Service,7900
+1.49275E+11,Phoenix,10-May-21,ACTIVE,Class-3,Self Service,8100
+7.97515E+11,Orion,11-May-21,CLOSED,Class-3,Self Service,8300
+2.14258E+11,Orbit,12-May-21,ACTIVE,Class-3,Self Service,8500
+4.27245E+11,Summit,13-May-21,ACTIVE,Class-2,Self Service,8700
+6.73151E+11,Trek,14-May-21,ACTIVE,Class-2,Self Service,8900
+2.25766E+11,Genesis,15-May-21,ACTIVE,Class-3,Self Service,9100
+2.17849E+11,Solstice,16-May-21,ACTIVE,Class-3,Managed Services,9300
+8.74674E+11,Pulse,17-May-21,ACTIVE,Class-1,Managed Services,9500
+7.75361E+11,Synergy,18-May-21,CLOSED,Class-3,Self Service,9700
+6.2384E+11,Core,19-May-21,ACTIVE,Class-3,Self Service,9900
+8.29608E+11,Zenith,20-May-21,ACTIVE,Class-1,Self Service,10100
+6.79343E+11,Fusion,21-May-21,ACTIVE,Class-3,Self Service,10300
+3.33424E+11,Radiance,22-May-21,ACTIVE,Class-2,Self Service,10500
+3.89298E+11,Infinity,23-May-21,ACTIVE,Class-2,Self Service,10700
+4.96556E+11,Blaze,24-May-21,ACTIVE,Class-2,Self Service,10900
+9.1616E+11,Fusion,25-May-21,ACTIVE,Class-2,Self Service,11100
+6.45031E+11,Pulse,26-May-21,ACTIVE,Class-1,Self Service,11300
+3.42826E+11,Eclipse,27-May-21,ACTIVE,Class-3,Self Service,11500
+6.23348E+11,Surge,28-May-21,CLOSED,Class-3,Self Service,11700
+9.42362E+11,Drift,29-May-21,ACTIVE,Class-2,Self Service,11900
+2.69804E+11,Beacon,30-May-21,ACTIVE,Class-1,Self Service,12100
+5.55841E+11,Velocity,31-May-21,ACTIVE,Class-3,Self Service,12300
+4.73023E+11,Impulse,1-Jun-21,CLOSED,Class-3,Self Service,12500
+8.74392E+11,Flare,2-Jun-21,ACTIVE,Class-3,Self Service,12700
+5.27015E+11,Drift,3-Jun-21,ACTIVE,Class-1,Self Service,12900
+2.72276E+11,Scope,4-Jun-22,ACTIVE,Class-3,Self Service,13100
+5.91338E+11,Ascend,5-Jun-22,ACTIVE,Class-3,Self Service,13300
+7.8256E+11,Crux,6-Jun-22,CLOSED,Class-1,Self Service,13500
+9.24441E+11,Echo,7-Jun-22,ACTIVE,Class-2,Self Service,13700
+6.80888E+11,Prism,8-Jun-22,ACTIVE,Class-2,Self Service,13900
+7.13476E+11,Rise,9-Jun-22,ACTIVE,Class-3,Managed Services,14100
+9.30807E+11,Elevate,10-Jun-22,ACTIVE,Class-2,Managed Services,14300
+2.41776E+11,Synergy,11-Jun-22,ACTIVE,Class-2,Self Service,14500
+7.18106E+11,Stream,12-Jun-22,ACTIVE,Class-2,Self Service,14700
+3.62877E+11,Quantum,13-Jun-22,ACTIVE,Class-2,Self Service,14900
+7.75738E+11,Pioneer,14-Jun-22,ACTIVE,Class-2,Self Service,15100
+4.21522E+11,Nebula,15-Jun-22,ACTIVE,Class-2,Managed Services,15300
+6.4715E+11,Thrive,16-Jun-22,ACTIVE,Class-2,Managed Services,15500
+7.50922E+11,Odyssey,17-Jun-22,ACTIVE,Class-3,Self Service,15700
+9.89112E+11,Span,18-Jun-22,ACTIVE,Class-3,Self Service,15900
+9.94633E+11,Titan,19-Jun-22,ACTIVE,Class-3,Self Service,16100
+3.90858E+11,Catalyst,20-Jun-22,ACTIVE,Class-2,Self Service,16300
+3.65564E+11,Phoenix,21-Jun-22,ACTIVE,Class-2,Self Service,16500
+6.53963E+11,Matrix,22-Jun-22,SUSPENDED,Class-1,Self Service,16700
+7.58227E+11,Orion,23-Jun-22,SUSPENDED,Class-1,Self Service,16900
+8.79403E+11,Nebula,24-Jun-22,SUSPENDED,Class-3,Managed Services,17100
+9.86805E+11,Horizon,25-Jun-22,SUSPENDED,Class-1,Self Service,17300
+8.66153E+11,Momentum,26-Jun-22,SUSPENDED,Class-1,Self Service,17500
+8.44996E+11,Apollo,27-Jun-22,CLOSED,Class-1,Self Service,17700
+5.50172E+11,Vortex,28-Jun-22,SUSPENDED,Class-2,Self Service,17900
+9.91519E+11,Mirage,29-Jun-22,SUSPENDED,Class-2,Self Service,18100
+3.73062E+11,Stream,30-Jun-23,SUSPENDED,Class-1,Self Service,18300
+5.39281E+11,Quest,1-Jul-23,SUSPENDED,Class-2,Self Service,18500
+3.4514E+11,Ascend,2-Jul-23,SUSPENDED,Class-1,Self Service,18700
+8.74472E+11,Infinity,3-Jul-23,SUSPENDED,Class-1,Managed Services,18900
+2.45795E+11,Terra,4-Jul-23,SUSPENDED,Class-3,Self Service,19100
+7.15887E+11,Chronos,5-Jul-23,CLOSED,Class-1,Self Service,19300
+8.93426E+11,Gaia,6-Jul-23,SUSPENDED,Class-1,Self Service,19500
+6.83138E+11,Nova,7-Jul-23,SUSPENDED,Class-1,Self Service,19700
+9.60571E+11,Orbit,8-Jul-23,SUSPENDED,Class-1,Self Service,19900
+4.96738E+11,Blaze,9-Jul-23,SUSPENDED,Class-1,Self Service,20100
+7.69463E+11,Ignite,10-Jul-23,SUSPENDED,Class-1,Self Service,20300
+5.79306E+11,Spectra,11-Jul-23,NOT FOUND,Class-1,Managed Services,20500
+2.71336E+11,Summit,12-Jul-23,ACTIVE,Class-2,Self Service,20700
+9.14891E+11,Flare,13-Jul-23,ACTIVE,Class-3,Self Service,20900
+7.16053E+11,Horizon,14-Jul-23,ACTIVE,Class-1,Self Service,21100
+3.23689E+11,Surge,15-Jul-23,ACTIVE,Class-3,Self Service,21300
+8.38777E+11,Nimbus,16-Jul-23,ACTIVE,Class-2,Self Service,21500
+4.18381E+11,Stratus,17-Jul-23,ACTIVE,Class-1,Self Service,21700
+3.48729E+11,Velocity,18-Jul-23,ACTIVE,Class-1,Self Service,21900
+6.7783E+11,Zephyr,19-Jul-23,SUSPENDED,Class-1,Self Service,22100
+5.40619E+11,Crux,20-Jul-23,SUSPENDED,Class-1,Self Service,22300
+9.32882E+11,Quest,21-Jul-24,SUSPENDED,Class-1,Self Service,22500
+8.05562E+11,Spark,22-Jul-24,CLOSED,Class-3,Managed Services,22700
+6.35786E+11,Flash,23-Jul-24,SUSPENDED,Class-1,Managed Services,22900
+1.73773E+11,Vertex,24-Jul-24,SUSPENDED,Class-1,Self Service,23100
+9.72667E+11,Vertex,25-Jul-24,SUSPENDED,Class-1,Self Service,23300
+9.13359E+11,Radiance,26-Jul-24,ACTIVE,Class-1,Self service,23500
+6.41348E+11,Aether,27-Jul-24,ACTIVE,Class-1,Self service,23700
+9.80703E+11,Nova,28-Jul-24,ACTIVE,Class-2,Self service,23900
+7.25564E+11,Trail,29-Jul-25,ACTIVE,Class-3,Managed Services,24100
+1.49347E+11,Axis,30-Jul-25,CLOSED,Class-2,Managed Services,24300
+9.09662E+11,Quantum,31-Jul-25,SUSPENDED,Class-3,Self service,24500
+1.04764E+11,Aurora,1-Aug-25,ACTIVE,Class-2,Self service,24700
+4.77082E+11,Prism,,,,,
