@@ -24,6 +24,7 @@ import { Authenticator } from '@aws-amplify/ui-react';
 import { Navbar, Spinner, Modal, Button, Nav, NavDropdown } from 'react-bootstrap';
 
 import Avatar from './Avatar'
+import KnowledgeBaseResult from './KnowledgeBaseResult';
 import './App.css';
 import { apiKey, apiUrl, avatarFileName, avatarJawboneName } from './aws-exports'
 
@@ -86,29 +87,76 @@ function Content({ signOut, user }) {
      */
     const initAudioWorklet = async () => {
         try {
+            // Close any existing audio context
+            if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+                await audioContextRef.current.close();
+            }
+            
+            // Create new audio context
             audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({
-                sampleRate: SAMPLE_RATE
+                sampleRate: SAMPLE_RATE,
+                latencyHint: 'interactive'
             });
 
-            await audioContextRef.current.audioWorklet.addModule('/audio-processor.js');
+            // Wait for audio context to be fully initialized
+            await audioContextRef.current.resume();
+            
+            // Add audio worklet module with retry logic
+            let retries = 0;
+            const maxRetries = 3;
+            
+            while (retries < maxRetries) {
+                try {
+                    await audioContextRef.current.audioWorklet.addModule('/audio-processor.js');
+                    break; // Success, exit retry loop
+                } catch (error) {
+                    retries++;
+                    console.warn(`Failed to load audio worklet (attempt ${retries}/${maxRetries}):`, error);
+                    if (retries >= maxRetries) {
+                        throw error; // Max retries reached, propagate error
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 500)); // Wait before retry
+                }
+            }
+            
+            // Create audio worklet node
             audioWorkletNodeRef.current = new AudioWorkletNode(
                 audioContextRef.current,
-                'audio-processor'
+                'audio-processor',
+                {
+                    outputChannelCount: [1],
+                    processorOptions: {
+                        sampleRate: SAMPLE_RATE
+                    }
+                }
             );
 
             // Handle messages from audio processor
             audioWorkletNodeRef.current.port.onmessage = (event) => {
                 if (event.data === 'needData') {
                     setTalking(false);
+                } else if (event.data === 'stopped') {
+                    setTalking(false);
                 }
             };
 
+            // Connect to audio output
             audioWorkletNodeRef.current.connect(audioContextRef.current.destination);
-            await audioContextRef.current.resume();
-
+            
             console.log('AudioWorklet initialized successfully');
         } catch (error) {
             console.error('Failed to initialize AudioWorklet:', error);
+            // Try to recover by setting up a basic audio context
+            try {
+                if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
+                    audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: SAMPLE_RATE
+                    });
+                }
+                await audioContextRef.current.resume();
+            } catch (fallbackError) {
+                console.error('Failed to initialize fallback audio context:', fallbackError);
+            }
         }
     };
 
@@ -236,14 +284,25 @@ function Content({ signOut, user }) {
                                 const float32Array = pcm16ToFloat(bytes.buffer);
                                 
                                 if (float32Array.length > 0) {
-                                    audioWorkletNodeRef.current?.port.postMessage({
-                                        type: 'data',
-                                        audio: float32Array
-                                    });
-                                    
-                                    if (!isTalking) {
-                                        setTalking(true);
-                                    }
+                                    // Add a small delay to ensure the audio worklet is ready
+                                    setTimeout(() => {
+                                        try {
+                                            audioWorkletNodeRef.current?.port.postMessage({
+                                                type: 'data',
+                                                audio: float32Array
+                                            });
+                                            
+                                            if (!isTalking) {
+                                                setTalking(true);
+                                            }
+                                        } catch (error) {
+                                            console.error('Error sending audio data to worklet:', error);
+                                            // Try to recover from audio processing errors
+                                            audioWorkletNodeRef.current?.port.postMessage({
+                                                type: 'clear'
+                                            });
+                                        }
+                                    }, 10);
                                 }
                             } catch (error) {
                                 console.error('Error processing audio data:', error);
@@ -257,6 +316,21 @@ function Content({ signOut, user }) {
                                 isMine: chunk.speaker === 'user',
                                 text: chunk.data
                             }]);
+                        } else if (chunk.event === 'knowledge_base') {
+                            // Handle knowledge base responses
+                            try {
+                                const kbData = JSON.parse(chunk.data);
+                                setMessages(messages => [...messages, {
+                                    isMine: false,
+                                    isKnowledgeBase: true,
+                                    title: kbData.title || "Knowledge Base Result",
+                                    content: kbData.content,
+                                    source: kbData.source,
+                                    metadata: kbData.metadata
+                                }]);
+                            } catch (error) {
+                                console.error('Error processing knowledge base data:', error);
+                            }
                         } else if (chunk.type === 'pong') {
                             // Handle heartbeat response if needed
                             console.debug('Received heartbeat response');
@@ -350,6 +424,24 @@ function Content({ signOut, user }) {
                     jawBoneName={avatarJawboneName}
                     isTalking={isTalking}
                 />
+                
+                {/* Chat messages display */}
+                <div className="chat-messages">
+                    {messages.map((message, index) => (
+                        <div key={index} className={`message ${message.isMine ? 'mine' : 'assistant'}`}>
+                            {message.isKnowledgeBase ? (
+                                <KnowledgeBaseResult
+                                    title={message.title}
+                                    content={message.content}
+                                    source={message.source}
+                                    metadata={message.metadata}
+                                />
+                            ) : (
+                                <div className="message-text">{message.text}</div>
+                            )}
+                        </div>
+                    ))}
+                </div>
             </div>
         </div>
     );

@@ -29,3 +29,48 @@
     justify-content: center;
     cursor: not-allowed;
 }
+.chat-messages {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  width: 400px;
+  max-height: 70vh;
+  overflow-y: auto;
+  background-color: rgba(255, 255, 255, 0.9);
+  border-radius: 10px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 10px;
+  z-index: 1000;
+}
+
+.message {
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  max-width: 90%;
+}
+
+.message.mine {
+  background-color: #e3f2fd;
+  align-self: flex-end;
+  margin-left: auto;
+}
+
+.message.assistant {
+  background-color: #f5f5f5;
+  align-self: flex-start;
+}
+
+.message-text {
+  word-wrap: break-word;
+}
+
+.knowledge-base-result {
+  width: 100%;
+}
+
+.kb-content {
+  max-height: 300px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}

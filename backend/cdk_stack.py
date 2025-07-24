@@ -111,13 +111,17 @@ class CdkStack(Stack):
                     "bedrock:InvokeAgent",
                     "bedrock:RetrieveAgent",
                     "bedrock:Converse",
-                    "bedrock:InvokeAgentAlias"
+                    "bedrock:InvokeAgentAlias",
+                    "bedrock:Retrieve",  # For knowledge base retrieval
+                    "bedrock:RetrieveAndGenerate"  # For knowledge base retrieval with generation
                 ],
                 resources=[
                     "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-sonic-v1:0",
                     "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-sonic-v1:*",
+                    "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:*",  # Added Nova Lite
                     "arn:aws:bedrock:us-east-1:*:agent/*",
-                    "arn:aws:bedrock:us-east-1:*:agent-alias/*"
+                    "arn:aws:bedrock:us-east-1:*:agent-alias/*",
+                    "arn:aws:bedrock:us-east-1:*:knowledge-base/*"  # For knowledge base access
                 ]
             )
         )

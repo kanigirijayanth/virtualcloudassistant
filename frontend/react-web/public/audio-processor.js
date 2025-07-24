@@ -21,6 +21,7 @@
  * - Buffered audio playback to prevent gaps
  * - Dynamic buffer management to prevent memory leaks
  * - Automatic request for more data when buffer runs low
+ * - Improved buffer starvation handling
  */
 
 class AudioProcessor extends AudioWorkletProcessor {
@@ -34,6 +35,12 @@ class AudioProcessor extends AudioWorkletProcessor {
         this.position = 0;  // Current playback position in buffer
         this.isPlaying = true;  // Playback state flag
         this.lastDataTime = Date.now();  // Track when we last received data
+        this.bufferThreshold = 4096;  // Minimum buffer size before requesting more data
+        this.starvationTimeout = 10000;  // Increased timeout to 10 seconds
+        this.needDataRequested = false;  // Flag to prevent multiple needData requests
+        this.silenceBuffer = new Float32Array(128).fill(0);  // Pre-allocated silence buffer
+        this.recoveryAttempts = 0;  // Track recovery attempts
+        this.maxRecoveryAttempts = 3;  // Maximum number of recovery attempts
 
         // Handle messages from main thread
         this.port.onmessage = (event) => {
@@ -45,18 +52,68 @@ class AudioProcessor extends AudioWorkletProcessor {
                 this.buffer = newBuffer;
                 this.isPlaying = true;
                 this.lastDataTime = Date.now();
+                this.needDataRequested = false;
+                this.recoveryAttempts = 0;  // Reset recovery attempts on successful data receipt
             } else if (event.data.type === 'clear') {
                 // Clear the buffer and reset position
                 this.buffer = new Float32Array(0);
                 this.position = 0;
+                this.needDataRequested = false;
             } else if (event.data.type === 'stop') {
                 // Clear the buffer and reset position on stop command
                 this.buffer = new Float32Array(0);
                 this.position = 0;
                 this.isPlaying = false;
+                this.needDataRequested = false;
                 this.port.postMessage('stopped');
             }
         };
+    }
+
+    /**
+     * Request more data from the main thread if needed
+     */
+    requestMoreDataIfNeeded() {
+        // Check if buffer is running low and we haven't already requested data
+        if (this.buffer.length - this.position < this.bufferThreshold && !this.needDataRequested) {
+            this.port.postMessage('needData');
+            this.needDataRequested = true;
+        }
+    }
+
+    /**
+     * Handle buffer starvation
+     * @returns {boolean} True if starvation was handled, false if reset needed
+     */
+    handleStarvation(output) {
+        const currentTime = Date.now();
+        const timeSinceLastData = currentTime - this.lastDataTime;
+        
+        // If we've been waiting too long for data
+        if (timeSinceLastData > this.starvationTimeout) {
+            if (this.recoveryAttempts < this.maxRecoveryAttempts) {
+                console.warn(`Audio buffer starved (${timeSinceLastData}ms), recovery attempt ${this.recoveryAttempts + 1}/${this.maxRecoveryAttempts}`);
+                this.recoveryAttempts++;
+                
+                // Fill output with silence to prevent clicks
+                output.fill(0);
+                
+                // Request more data again
+                this.needDataRequested = false;
+                this.requestMoreDataIfNeeded();
+                
+                return true;
+            } else {
+                console.error('Audio buffer starved for too long, resetting');
+                this.buffer = new Float32Array(0);
+                this.position = 0;
+                this.needDataRequested = false;
+                this.recoveryAttempts = 0;
+                return false;
+            }
+        }
+        
+        return true;
     }
 
     /**
@@ -77,19 +134,19 @@ class AudioProcessor extends AudioWorkletProcessor {
             return true;
         }
 
+        // Request more data if buffer is running low
+        this.requestMoreDataIfNeeded();
+
         // Check if we have enough data in buffer
         if (this.buffer.length - this.position < output.length) {
-            // Not enough data, request more
-            this.port.postMessage('needData');
-
-            // Check if we've been waiting too long for data (5 seconds)
-            if (Date.now() - this.lastDataTime > 5000) {
-                console.warn('Audio buffer starved for too long, resetting');
-                this.buffer = new Float32Array(0);
-                this.position = 0;
+            // Not enough data, handle potential starvation
+            if (!this.handleStarvation(output)) {
+                // Reset occurred
+                output.fill(0);
+                return true;
             }
-
-            // Fill remaining output with silence to prevent clicks
+            
+            // Fill output with silence to prevent clicks
             output.fill(0);
             return true;
         }
@@ -103,7 +160,7 @@ class AudioProcessor extends AudioWorkletProcessor {
 
         // Clean up buffer if we've processed a significant amount
         // This prevents the buffer from growing indefinitely
-        if (this.position > sampleRate * 2) {  // Clean up after 2 seconds of audio
+        if (this.position > sampleRate * 5) {  // Clean up after 5 seconds of audio (increased from 2)
             this.buffer = this.buffer.slice(this.position);
             this.position = 0;
         }

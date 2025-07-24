@@ -69,6 +69,7 @@ from pipecat.processors.logger import FrameLogger
 from pipecat.processors.transcript_processor import TranscriptProcessor
 
 from base64_serializer import Base64AudioSerializer
+from custom_nova_sonic import CustomNovaSonicService
 
 SAMPLE_RATE = 16000
 API_KEY = "sk_live_51NzQWHSIANER2vP8kTGkZQBfwwQCzVQT"
@@ -106,6 +107,14 @@ from aws_account_functions import (
     get_account_status_summary,
     get_accounts_by_year,
     get_accounts_by_year_summary
+)
+
+# Import Bedrock knowledge base functions
+from bedrock_kb_functions import (
+    query_knowledge_base,
+    get_document_by_id,
+    search_documents,
+    format_kb_response
 )
 
 # Update the AWS account service with the absolute path to the CSV file
@@ -193,8 +202,58 @@ accounts_by_year_summary_function = FunctionSchema(
     required=[]
 )
 
-# Create tools schema with all AWS account functions
+# Define function schemas for Bedrock knowledge base operations
+query_kb_function = FunctionSchema(
+    name="query_knowledge_base",
+    description="Query the Bedrock knowledge base with a specific question about SOPs, LLDs, HLDs, or project operations.",
+    properties={
+        "query": {
+            "type": "string",
+            "description": "The question to ask the knowledge base (e.g., 'What is the backup procedure for the database?').",
+        },
+        "max_results": {
+            "type": "integer",
+            "description": "Maximum number of results to return (default: 5).",
+        }
+    },
+    required=["query"]
+)
+
+get_document_function = FunctionSchema(
+    name="get_document_by_id",
+    description="Retrieve a specific document from the knowledge base by its ID.",
+    properties={
+        "document_id": {
+            "type": "string",
+            "description": "The ID of the document to retrieve.",
+        }
+    },
+    required=["document_id"]
+)
+
+search_documents_function = FunctionSchema(
+    name="search_documents",
+    description="Search for documents in the knowledge base based on keywords and optional document type.",
+    properties={
+        "keywords": {
+            "type": "string",
+            "description": "Keywords to search for in the documents.",
+        },
+        "document_type": {
+            "type": "string",
+            "description": "Optional filter for document type (SOP, LLD, HLD).",
+        },
+        "max_results": {
+            "type": "integer",
+            "description": "Maximum number of results to return (default: 10).",
+        }
+    },
+    required=["keywords"]
+)
+
+# Create tools schema with all AWS account and knowledge base functions
 tools = ToolsSchema(standard_tools=[
+    # AWS Account functions
     account_details_function,
     accounts_by_classification_function,
     classification_summary_function,
@@ -202,7 +261,12 @@ tools = ToolsSchema(standard_tools=[
     total_cost_function,
     account_status_summary_function,
     accounts_by_year_function,
-    accounts_by_year_summary_function
+    accounts_by_year_summary_function,
+    
+    # Bedrock Knowledge Base functions
+    query_kb_function,
+    get_document_function,
+    search_documents_function
 ])
 
 async def setup(websocket: WebSocket):
@@ -240,7 +304,7 @@ async def setup(websocket: WebSocket):
     params.output_sample_rate = SAMPLE_RATE
 
     # Initialize LLM service
-    llm = AWSNovaSonicLLMService(
+    llm = CustomNovaSonicService(
         secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
         access_key_id=os.getenv("AWS_ACCESS_KEY_ID"),
         session_token=os.getenv("AWS_SESSION_TOKEN"),
@@ -248,6 +312,9 @@ async def setup(websocket: WebSocket):
         voice_id="tiffany",  # Available voices: matthew, tiffany, amy
         params=params
     )
+    
+    # Set the transport for the custom service
+    llm.set_transport(transport)
 
     # Register AWS account functions
     llm.register_function("get_account_details", get_account_details)
@@ -258,6 +325,11 @@ async def setup(websocket: WebSocket):
     llm.register_function("get_account_status_summary", get_account_status_summary)
     llm.register_function("get_accounts_by_year", get_accounts_by_year)
     llm.register_function("get_accounts_by_year_summary", get_accounts_by_year_summary)
+    
+    # Register Bedrock knowledge base functions
+    llm.register_function("query_knowledge_base", query_knowledge_base)
+    llm.register_function("get_document_by_id", get_document_by_id)
+    llm.register_function("search_documents", search_documents)
 
     # Set up conversation context
     context = OpenAILLMContext(
