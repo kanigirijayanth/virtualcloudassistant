@@ -36,7 +36,7 @@ class AWSAccountService:
             self._data['Classification'] = self._data['Classification'].str.strip()
             # Normalize classification format (ensure consistent format like "Class-1")
             self._data['Classification'] = self._data['Classification'].apply(
-                lambda x: f"Class-{x.split('-')[-1]}" if "-" in x else f"Class-{x.split(' ')[-1]}" if " " in x else x
+                lambda x: f"Class-{str(x).split('-')[-1]}" if "-" in str(x) else f"Class-{str(x).split(' ')[-1]}" if " " in str(x) else x
             )
             # Convert account numbers to strings to preserve leading zeros
             self._data['AWS Account Number'] = self._data['AWS Account Number'].astype(str)
@@ -142,21 +142,21 @@ class AWSAccountService:
         if self._data is None or self._data.empty:
             return 0
         
-        return self._data['Total Cost of Account in Indian Rupees'].sum()
+        return self._data['Total Cost in Indian Rupees'].sum()
     
     def get_total_cost_by_classification(self) -> Dict[str, int]:
         """Get the total cost for each classification."""
         if self._data is None or self._data.empty:
             return {}
         
-        return self._data.groupby('Classification')['Total Cost of Account in Indian Rupees'].sum().to_dict()
+        return self._data.groupby('Classification')['Total Cost in Indian Rupees'].sum().to_dict()
     
     def get_total_cost_by_management_type(self) -> Dict[str, int]:
         """Get the total cost for each management type."""
         if self._data is None or self._data.empty:
             return {}
         
-        return self._data.groupby('Management Type')['Total Cost of Account in Indian Rupees'].sum().to_dict()
+        return self._data.groupby('Management Type')['Total Cost in Indian Rupees'].sum().to_dict()
     
     def get_all_accounts(self) -> List[Dict]:
         """Get all accounts."""
