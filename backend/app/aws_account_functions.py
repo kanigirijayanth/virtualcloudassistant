@@ -1,14 +1,16 @@
-from aws_account_service import AWSAccountService
 from typing import Dict, List, Any
 import json
 
-# Initialize the AWS Account Service
-aws_service = AWSAccountService()
+# The AWS account service instance will be imported from main.py
+aws_service = None
 
 async def get_account_details(params):
     """Get account details by account number or name."""
+    print(f"get_account_details called with arguments: {params.arguments}")
     account_number = params.arguments.get("account_number")
     account_name = params.arguments.get("account_name")
+    
+    print(f"Looking up account - number: {account_number}, name: {account_name}")
     
     if account_number:
         account = aws_service.get_account_by_number(account_number)

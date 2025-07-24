@@ -95,6 +95,8 @@ def update_dredentials():
     except Exception as e:
         print(f"Error refreshing credentials: {str(e)}", flush=True)
 
+import os
+from aws_account_service import AWSAccountService
 from aws_account_functions import (
     get_account_details,
     get_accounts_by_classification,
@@ -104,21 +106,30 @@ from aws_account_functions import (
     get_account_status_summary
 )
 
+# Update the AWS account service with the absolute path to the CSV file
+csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "AWS_AccountDetails.csv")
+print(f"Setting AWS account service CSV path to: {csv_path}")
+aws_service = AWSAccountService(csv_path)
+
+# Set the aws_service in aws_account_functions
+import aws_account_functions
+aws_account_functions.aws_service = aws_service
+
 # Define function schemas for AWS account operations
 account_details_function = FunctionSchema(
     name="get_account_details",
-    description="Get detailed information about an AWS account by account number or name.",
+    description="Get detailed information about an AWS account by account number or name. You must provide either account_number or account_name.",
     properties={
         "account_number": {
             "type": "string",
-            "description": "The AWS account number to look up.",
+            "description": "The AWS account number to look up (e.g., '100942612345').",
         },
         "account_name": {
             "type": "string",
-            "description": "The AWS account name to look up.",
+            "description": "The AWS account name to look up (e.g., 'AWS Project 10').",
         }
     },
-    required=[]  # Neither parameter is required, user can provide either one
+    required=[]  # Neither parameter is required individually, but one must be provided
 )
 
 accounts_by_classification_function = FunctionSchema(

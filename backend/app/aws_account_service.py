@@ -10,12 +10,26 @@ class AWSAccountService:
         """Initialize the service with the CSV data file path."""
         self.csv_path = csv_path
         self._data = None
+        print(f"Initializing AWSAccountService with CSV path: {self.csv_path}")
         self._load_data()
     
     def _load_data(self):
         """Load data from CSV file into a pandas DataFrame."""
         try:
+            import os
+            print(f"Current working directory: {os.getcwd()}")
+            print(f"Checking if file exists: {os.path.exists(self.csv_path)}")
+            
+            # Try with absolute path if relative path doesn't work
+            if not os.path.exists(self.csv_path):
+                abs_path = os.path.join(os.getcwd(), self.csv_path)
+                print(f"Trying absolute path: {abs_path}")
+                if os.path.exists(abs_path):
+                    self.csv_path = abs_path
+            
             self._data = pd.read_csv(self.csv_path)
+            print(f"Successfully loaded CSV with {len(self._data)} rows")
+            
             # Clean column names by stripping whitespace
             self._data.columns = self._data.columns.str.strip()
             # Clean classification values
@@ -26,30 +40,47 @@ class AWSAccountService:
             )
             # Convert account numbers to strings to preserve leading zeros
             self._data['AWS Account Number'] = self._data['AWS Account Number'].astype(str)
+            print("Data preprocessing completed successfully")
         except Exception as e:
             print(f"Error loading CSV data: {e}")
+            import traceback
+            traceback.print_exc()
             self._data = pd.DataFrame()
     
     def get_account_by_number(self, account_number: str) -> Dict:
         """Get account details by account number."""
+        print(f"Looking up account by number: {account_number}")
         if self._data is None or self._data.empty:
+            print("Data is None or empty")
             return {}
+        
+        print(f"Data has {len(self._data)} rows")
+        print(f"First few account numbers in data: {self._data['AWS Account Number'].head().tolist()}")
         
         account = self._data[self._data['AWS Account Number'] == account_number]
         if account.empty:
+            print(f"No account found with number: {account_number}")
             return {}
         
+        print(f"Found account: {account.iloc[0]['AWS account Name']}")
         return account.iloc[0].to_dict()
     
     def get_account_by_name(self, account_name: str) -> Dict:
         """Get account details by account name."""
+        print(f"Looking up account by name: {account_name}")
         if self._data is None or self._data.empty:
+            print("Data is None or empty")
             return {}
+        
+        print(f"Data has {len(self._data)} rows")
+        print(f"First few account names in data: {self._data['AWS account Name'].head().tolist()}")
         
         account = self._data[self._data['AWS account Name'] == account_name]
         if account.empty:
+            print(f"No account found with name: {account_name}")
             return {}
         
+        print(f"Found account: {account.iloc[0]['AWS Account Number']}")
         return account.iloc[0].to_dict()
     
     def get_accounts_by_classification(self, classification: str) -> List[Dict]:
