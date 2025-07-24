@@ -27,7 +27,7 @@ async def get_account_details(params):
                 "status": account["Status"],
                 "classification": account["Classification"],
                 "management_type": account["Management Type"],
-                "cost": int(account["Total Cost of Account in Indian Rupees"])
+                "cost": int(account["Cost of Account in Indian Rupees"])
             })
         else:
             await params.result_callback({
@@ -49,7 +49,7 @@ async def get_account_details(params):
                 "status": account["Status"],
                 "classification": account["Classification"],
                 "management_type": account["Management Type"],
-                "cost": int(account["Total Cost of Account in Indian Rupees"])
+                "cost": int(account["Cost of Account in Indian Rupees"])
             })
         else:
             await params.result_callback({
@@ -85,7 +85,7 @@ async def get_accounts_by_classification(params):
                     "account_number": acc["AWS Account Number"],
                     "account_name": acc["AWS account Name"],
                     "status": acc["Status"],
-                    "cost": int(acc["Total Cost of Account in Indian Rupees"])
+                    "cost": int(acc["Cost of Account in Indian Rupees"])
                 } for acc in accounts
             ]
         })

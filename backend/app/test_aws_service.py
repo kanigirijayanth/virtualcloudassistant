@@ -17,7 +17,7 @@ def main():
     
     # Test getting account by number
     print("\n1. Testing get_account_by_number:")
-    account = service.get_account_by_number("100942612345")
+    account = service.get_account_by_number("550558532874")  # Vortex account
     if account:
         print(f"Found account: {account['AWS account Name']}")
         print(f"Account number as digits: {service.get_account_number_as_digits(account['AWS Account Number'])}")
@@ -26,11 +26,11 @@ def main():
     
     # Test getting account by name
     print("\n2. Testing get_account_by_name:")
-    account = service.get_account_by_name("AWS Project 10")
+    account = service.get_account_by_name("Vortex")
     if account:
         print(f"Found account number: {account['AWS Account Number']}")
         print(f"Status: {account['Status']}")
-        print(f"Cost: {account['Total Cost of Account in Indian Rupees']}")
+        print(f"Cost: {account['Cost of Account in Indian Rupees']}")
     else:
         print("Account not found")
     
