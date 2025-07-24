@@ -14,7 +14,7 @@
 /**
  * Audio Processor Worklet
  * 
- * This AudioWorklet handles real-time audio processing for the Virtual Banking Assistant.
+ * This AudioWorklet handles real-time audio processing for the Virtual Cloud Assistant.
  * It manages a buffer of audio data and streams it to the audio output in a controlled manner.
  * 
  * Features:
@@ -70,44 +70,44 @@ class AudioProcessor extends AudioWorkletProcessor {
      */
     process(inputs, outputs, parameters) {
         const output = outputs[0][0];  // Get first channel of first output
-        
+
         if (!this.isPlaying) {
             // Fill output with silence when not playing
             output.fill(0);
             return true;
         }
-        
+
         // Check if we have enough data in buffer
         if (this.buffer.length - this.position < output.length) {
             // Not enough data, request more
             this.port.postMessage('needData');
-            
+
             // Check if we've been waiting too long for data (5 seconds)
             if (Date.now() - this.lastDataTime > 5000) {
                 console.warn('Audio buffer starved for too long, resetting');
                 this.buffer = new Float32Array(0);
                 this.position = 0;
             }
-            
+
             // Fill remaining output with silence to prevent clicks
             output.fill(0);
             return true;
         }
-        
+
         // Copy data from buffer to output
         for (let i = 0; i < output.length; i++) {
             output[i] = this.buffer[this.position + i];
         }
-        
+
         this.position += output.length;
-        
+
         // Clean up buffer if we've processed a significant amount
         // This prevents the buffer from growing indefinitely
         if (this.position > sampleRate * 2) {  // Clean up after 2 seconds of audio
             this.buffer = this.buffer.slice(this.position);
             this.position = 0;
         }
-        
+
         return true;  // Keep processor alive
     }
 }
