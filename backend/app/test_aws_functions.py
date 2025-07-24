@@ -34,12 +34,12 @@ async def test_get_account_details():
     
     # Test with account number
     print("\nTesting get_account_details with account number:")
-    params = MockParams({"account_number": "550559000000.0"})
+    params = MockParams({"account_number": "185467098263"})
     await get_account_details(params)
     
     # Test with account name
     print("\nTesting get_account_details with account name:")
-    params = MockParams({"account_name": "Vortex"})
+    params = MockParams({"account_name": "Glide"})
     await get_account_details(params)
     
     # Test with invalid account number
