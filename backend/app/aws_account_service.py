@@ -32,6 +32,9 @@ class AWSAccountService:
             
             # Clean column names by stripping whitespace
             self._data.columns = self._data.columns.str.strip()
+            # Print column names for debugging
+            print(f"CSV columns: {self._data.columns.tolist()}")
+            
             # Clean classification values
             self._data['Classification'] = self._data['Classification'].str.strip()
             # Normalize classification format (ensure consistent format like "Class-1")
@@ -77,10 +80,33 @@ class AWSAccountService:
             print("Data is None or empty")
             return {}
         
-        print(f"Data has {len(self._data)} rows")
-        print(f"First few account names in data: {self._data['AWS account Name'].head().tolist()}")
+        # Determine the correct column name for account name
+        account_name_column = None
+        for col in self._data.columns:
+            if 'account name' in col.lower() or 'accountname' in col.lower():
+                account_name_column = col
+                break
         
-        account = self._data[self._data['AWS account Name'] == account_name]
+        if not account_name_column:
+            print("Could not find account name column")
+            return {}
+        
+        print(f"Using column '{account_name_column}' for account name lookup")
+        print(f"First few account names in data: {self._data[account_name_column].head().tolist()}")
+        
+        # Try exact match first
+        account = self._data[self._data[account_name_column] == account_name]
+        
+        # If no exact match, try case-insensitive match
+        if account.empty:
+            print(f"No exact match for account name: {account_name}, trying case-insensitive match")
+            account = self._data[self._data[account_name_column].str.lower() == account_name.lower()]
+        
+        # If still no match, try partial match
+        if account.empty:
+            print(f"No case-insensitive match, trying partial match")
+            account = self._data[self._data[account_name_column].str.lower().str.contains(account_name.lower())]
+        
         if account.empty:
             print(f"No account found with name: {account_name}")
             return {}
@@ -171,18 +197,46 @@ class AWSAccountService:
         return self._data.to_dict('records')
     
     def get_account_number_as_digits(self, account_number: str) -> str:
-        """Convert account number to digit-by-digit string representation."""
-        digit_map = {
-            '0': 'zero',
-            '1': 'one',
-            '2': 'two',
-            '3': 'three',
-            '4': 'four',
-            '5': 'five',
-            '6': 'six',
-            '7': 'seven',
-            '8': 'eight',
-            '9': 'nine'
-        }
+        """Convert account number to digit-by-digit string representation.
+        Returns each digit separately without converting to word form."""
+        return ' '.join([digit for digit in str(account_number)])
         
-        return ' '.join([digit_map.get(digit, digit) for digit in str(account_number)])
+    def get_accounts_by_year(self, year: int) -> List[Dict]:
+        """Get all accounts provisioned in a specific year."""
+        if self._data is None or self._data.empty:
+            return []
+        
+        # Convert the Provisioning Date to datetime and extract year
+        try:
+            # Create a copy to avoid SettingWithCopyWarning
+            df_copy = self._data.copy()
+            # Parse the date format (assuming DD-MMM-YY format)
+            df_copy['Provisioning_Year'] = pd.to_datetime(df_copy['Provisioning Date'], format='%d-%b-%y').dt.year
+            
+            # Filter accounts by the specified year
+            accounts = df_copy[df_copy['Provisioning_Year'] == year]
+            if accounts.empty:
+                return []
+            
+            return accounts.to_dict('records')
+        except Exception as e:
+            print(f"Error processing dates: {e}")
+            return []
+            
+    def get_accounts_count_by_year(self) -> Dict[int, int]:
+        """Get the count of accounts provisioned in each year."""
+        if self._data is None or self._data.empty:
+            return {}
+        
+        try:
+            # Create a copy to avoid SettingWithCopyWarning
+            df_copy = self._data.copy()
+            # Parse the date format (assuming DD-MMM-YY format)
+            df_copy['Provisioning_Year'] = pd.to_datetime(df_copy['Provisioning Date'], format='%d-%b-%y').dt.year
+            
+            # Count accounts by year
+            year_counts = df_copy['Provisioning_Year'].value_counts().to_dict()
+            return {int(year): count for year, count in year_counts.items()}
+        except Exception as e:
+            print(f"Error counting accounts by year: {e}")
+            return {}

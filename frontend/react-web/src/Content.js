@@ -150,11 +150,19 @@ function Content({ signOut, user }) {
 
     // Setup and cleanup effect
     useEffect(() => {
+        let heartbeatInterval;
+        let reconnectTimeout;
+        
         const cleanup = () => {
+            // Clear any pending intervals/timeouts
+            if (heartbeatInterval) clearInterval(heartbeatInterval);
+            if (reconnectTimeout) clearTimeout(reconnectTimeout);
+            
             // Close WebSocket connection
             if (wsRef.current?.readyState === WebSocket.OPEN) {
                 wsRef.current.close();
             }
+            
             // Clean up audio context
             if (audioContextRef.current?.state !== 'closed') {
                 if (audioWorkletNodeRef.current) {
@@ -171,70 +179,130 @@ function Content({ signOut, user }) {
             return;
         }
 
-        // Initialize audio and WebSocket
+        // Initialize audio and WebSocket with reconnection support
         const initAudio = async () => {
             await initAudioWorklet();
-
-            wsRef.current = new WebSocket(apiUrl, apiKey);
-
-            wsRef.current.onopen = async () => {
-                console.log('WebSocket connected');
-                await initMicrophone();
-            };
-
-            wsRef.current.onmessage = async (event) => {
-                const chunk = JSON.parse(event.data);
-
-                if (chunk.event === 'stop') {
-                    console.log('Interruption')
-                    audioWorkletNodeRef.current?.port.postMessage({
-                        type: 'stop'
-                    });
-
-                    setTalking(false);
-
-                } else if (chunk.event === 'media') {
-                    try {
-                        const base64Data = chunk.data;
-                        const binaryString = atob(base64Data);
-                        const bytes = new Uint8Array(binaryString.length);
-                        for (let i = 0; i < binaryString.length; i++) {
-                            bytes[i] = binaryString.charCodeAt(i);
-                        }
-
-                        const float32Array = pcm16ToFloat(bytes.buffer);
-
-                        if (float32Array.length > 0) {
-                            audioWorkletNodeRef.current?.port.postMessage({
-                                type: 'data',
-                                audio: float32Array
-                            });
-
-                            if (!isTalking) {
-                                setTalking(true);
+            setupWebSocketConnection();
+        };
+        
+        // Setup WebSocket connection with reconnection logic
+        const setupWebSocketConnection = () => {
+            let reconnectAttempts = 0;
+            const maxReconnectAttempts = 5;
+            const reconnectInterval = 2000; // 2 seconds
+            
+            const connect = () => {
+                wsRef.current = new WebSocket(apiUrl, apiKey);
+                
+                wsRef.current.onopen = async () => {
+                    console.log('WebSocket connected');
+                    reconnectAttempts = 0; // Reset reconnect attempts on successful connection
+                    await initMicrophone();
+                    
+                    // Setup heartbeat to keep connection alive
+                    heartbeatInterval = setInterval(() => {
+                        if (wsRef.current?.readyState === WebSocket.OPEN) {
+                            try {
+                                // Send a ping message to keep the connection alive
+                                wsRef.current.send(JSON.stringify({ type: 'ping' }));
+                            } catch (error) {
+                                console.error('Error sending heartbeat:', error);
                             }
                         }
+                    }, 30000); // Every 30 seconds
+                };
+                
+                wsRef.current.onmessage = async (event) => {
+                    try {
+                        const chunk = JSON.parse(event.data);
+                        
+                        if (chunk.event === 'stop') {
+                            console.log('Interruption');
+                            audioWorkletNodeRef.current?.port.postMessage({
+                                type: 'stop'
+                            });
+                            
+                            setTalking(false);
+                            
+                        } else if (chunk.event === 'media') {
+                            try {
+                                const base64Data = chunk.data;
+                                const binaryString = atob(base64Data);
+                                const bytes = new Uint8Array(binaryString.length);
+                                for (let i = 0; i < binaryString.length; i++) {
+                                    bytes[i] = binaryString.charCodeAt(i);
+                                }
+                                
+                                const float32Array = pcm16ToFloat(bytes.buffer);
+                                
+                                if (float32Array.length > 0) {
+                                    audioWorkletNodeRef.current?.port.postMessage({
+                                        type: 'data',
+                                        audio: float32Array
+                                    });
+                                    
+                                    if (!isTalking) {
+                                        setTalking(true);
+                                    }
+                                }
+                            } catch (error) {
+                                console.error('Error processing audio data:', error);
+                                // Try to recover from audio processing errors
+                                audioWorkletNodeRef.current?.port.postMessage({
+                                    type: 'clear'
+                                });
+                            }
+                        } else if (chunk.event === 'text') {
+                            setMessages(messages => [...messages, {
+                                isMine: chunk.speaker === 'user',
+                                text: chunk.data
+                            }]);
+                        } else if (chunk.type === 'pong') {
+                            // Handle heartbeat response if needed
+                            console.debug('Received heartbeat response');
+                        }
                     } catch (error) {
-                        console.error('Error processing audio data:', error);
+                        console.error('Error processing WebSocket message:', error);
+                        // Try to recover from the error
+                        if (audioWorkletNodeRef.current) {
+                            audioWorkletNodeRef.current.port.postMessage({
+                                type: 'clear'
+                            });
+                        }
                     }
-                } else if (chunk.event === 'text') {
-                    setMessages(messages => [...messages, {
-                        isMine: chunk.speaker === 'user',
-                        text: chunk.data
-                    }]);
-                }
+                };
+                
+                wsRef.current.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    setTalking(false);
+                };
+                
+                wsRef.current.onclose = (event) => {
+                    console.log('WebSocket closed', event);
+                    setTalking(false);
+                    
+                    // Clear heartbeat interval
+                    if (heartbeatInterval) {
+                        clearInterval(heartbeatInterval);
+                        heartbeatInterval = null;
+                    }
+                    
+                    // Attempt to reconnect if still engaged
+                    if (isEngaged && reconnectAttempts < maxReconnectAttempts) {
+                        console.log(`Attempting to reconnect (${reconnectAttempts + 1}/${maxReconnectAttempts})...`);
+                        reconnectAttempts++;
+                        
+                        reconnectTimeout = setTimeout(() => {
+                            connect();
+                        }, reconnectInterval);
+                    } else if (reconnectAttempts >= maxReconnectAttempts) {
+                        console.error('Max reconnection attempts reached');
+                        setEngaged(false);
+                    }
+                };
             };
-
-            wsRef.current.onerror = (error) => {
-                console.error('WebSocket error:', error);
-                setTalking(false);
-            };
-
-            wsRef.current.onclose = () => {
-                console.log('WebSocket closed');
-                setTalking(false);
-                setEngaged(false);
-            };
+            
+            connect();
         };
 
         initAudio();

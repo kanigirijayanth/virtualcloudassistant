@@ -30,6 +30,8 @@ The Virtual Cloud Assistant can provide the following information:
    - Cost of all AWS Accounts
    - Cost of AWS Account under each Classification or Management Type
    - Detailed information for a specific account by name or number
+   - Number of accounts provisioned in a specific year
+   - Summary of accounts provisioned by year
 
 ## Testing
 

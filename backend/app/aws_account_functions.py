@@ -157,3 +157,70 @@ async def get_account_status_summary(params):
         "found": True,
         "summary": summary
     })
+
+async def get_accounts_by_year(params):
+    """Get accounts provisioned in a specific year."""
+    year = params.arguments.get("year")
+    
+    if not year:
+        await params.result_callback({
+            "found": False,
+            "message": "Please provide a year."
+        })
+        return
+    
+    try:
+        year = int(year)
+        accounts = aws_service.get_accounts_by_year(year)
+        
+        if accounts:
+            await params.result_callback({
+                "found": True,
+                "year": year,
+                "count": len(accounts),
+                "accounts": [
+                    {
+                        "account_number": acc["AWS Account Number"],
+                        "account_name": acc["AWS account Name"],
+                        "provisioning_date": acc["Provisioning Date"],
+                        "status": acc["Status"],
+                        "cost": int(acc["Cost of Account in Indian Rupees"])
+                    } for acc in accounts
+                ]
+            })
+        else:
+            await params.result_callback({
+                "found": False,
+                "message": f"No accounts found provisioned in year {year}."
+            })
+    except ValueError:
+        await params.result_callback({
+            "found": False,
+            "message": f"Invalid year format: {year}. Please provide a valid year (e.g., 2023)."
+        })
+
+async def get_accounts_by_year_summary(params):
+    """Get summary of accounts provisioned by year."""
+    year_counts = aws_service.get_accounts_count_by_year()
+    
+    if not year_counts:
+        await params.result_callback({
+            "found": False,
+            "message": "No account data available."
+        })
+        return
+    
+    summary = []
+    for year, count in year_counts.items():
+        summary.append({
+            "year": year,
+            "count": count
+        })
+    
+    # Sort by year
+    summary.sort(key=lambda x: x["year"])
+    
+    await params.result_callback({
+        "found": True,
+        "summary": summary
+    })

@@ -32,6 +32,8 @@ class AudioProcessor extends AudioWorkletProcessor {
         super();
         this.buffer = new Float32Array(0);  // Audio data buffer
         this.position = 0;  // Current playback position in buffer
+        this.isPlaying = true;  // Playback state flag
+        this.lastDataTime = Date.now();  // Track when we last received data
 
         // Handle messages from main thread
         this.port.onmessage = (event) => {
@@ -41,10 +43,18 @@ class AudioProcessor extends AudioWorkletProcessor {
                 newBuffer.set(this.buffer);
                 newBuffer.set(event.data.audio, this.buffer.length);
                 this.buffer = newBuffer;
+                this.isPlaying = true;
+                this.lastDataTime = Date.now();
             } else if (event.data.type === 'clear') {
                 // Clear the buffer and reset position
                 this.buffer = new Float32Array(0);
                 this.position = 0;
+            } else if (event.data.type === 'stop') {
+                // Clear the buffer and reset position on stop command
+                this.buffer = new Float32Array(0);
+                this.position = 0;
+                this.isPlaying = false;
+                this.port.postMessage('stopped');
             }
         };
     }
@@ -60,28 +70,44 @@ class AudioProcessor extends AudioWorkletProcessor {
      */
     process(inputs, outputs, parameters) {
         const output = outputs[0][0];  // Get first channel of first output
-
-        // Check if we have enough data in buffer
-        if (this.buffer.length - this.position < output.length) {
-            // Request more data from main thread
-            this.port.postMessage('needData');
+        
+        if (!this.isPlaying) {
+            // Fill output with silence when not playing
+            output.fill(0);
             return true;
         }
-
+        
+        // Check if we have enough data in buffer
+        if (this.buffer.length - this.position < output.length) {
+            // Not enough data, request more
+            this.port.postMessage('needData');
+            
+            // Check if we've been waiting too long for data (5 seconds)
+            if (Date.now() - this.lastDataTime > 5000) {
+                console.warn('Audio buffer starved for too long, resetting');
+                this.buffer = new Float32Array(0);
+                this.position = 0;
+            }
+            
+            // Fill remaining output with silence to prevent clicks
+            output.fill(0);
+            return true;
+        }
+        
         // Copy data from buffer to output
         for (let i = 0; i < output.length; i++) {
             output[i] = this.buffer[this.position + i];
         }
-
+        
         this.position += output.length;
-
+        
         // Clean up buffer if we've processed a significant amount
         // This prevents the buffer from growing indefinitely
         if (this.position > sampleRate * 2) {  // Clean up after 2 seconds of audio
             this.buffer = this.buffer.slice(this.position);
             this.position = 0;
         }
-
+        
         return true;  // Keep processor alive
     }
 }

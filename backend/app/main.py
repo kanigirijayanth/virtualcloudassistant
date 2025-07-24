@@ -103,7 +103,9 @@ from aws_account_functions import (
     get_classification_summary,
     get_management_type_summary,
     get_total_cost,
-    get_account_status_summary
+    get_account_status_summary,
+    get_accounts_by_year,
+    get_accounts_by_year_summary
 )
 
 # Update the AWS account service with the absolute path to the CSV file
@@ -172,6 +174,25 @@ account_status_summary_function = FunctionSchema(
     required=[]
 )
 
+accounts_by_year_function = FunctionSchema(
+    name="get_accounts_by_year",
+    description="Get all AWS accounts provisioned in a specific year.",
+    properties={
+        "year": {
+            "type": "string",
+            "description": "The year to filter accounts by (e.g., 2019, 2020, 2021).",
+        }
+    },
+    required=["year"]
+)
+
+accounts_by_year_summary_function = FunctionSchema(
+    name="get_accounts_by_year_summary",
+    description="Get a summary of AWS accounts provisioned by year, showing count for each year.",
+    properties={},
+    required=[]
+)
+
 # Create tools schema with all AWS account functions
 tools = ToolsSchema(standard_tools=[
     account_details_function,
@@ -179,7 +200,9 @@ tools = ToolsSchema(standard_tools=[
     classification_summary_function,
     management_type_summary_function,
     total_cost_function,
-    account_status_summary_function
+    account_status_summary_function,
+    accounts_by_year_function,
+    accounts_by_year_summary_function
 ])
 
 async def setup(websocket: WebSocket):
@@ -233,6 +256,8 @@ async def setup(websocket: WebSocket):
     llm.register_function("get_management_type_summary", get_management_type_summary)
     llm.register_function("get_total_cost", get_total_cost)
     llm.register_function("get_account_status_summary", get_account_status_summary)
+    llm.register_function("get_accounts_by_year", get_accounts_by_year)
+    llm.register_function("get_accounts_by_year_summary", get_accounts_by_year_summary)
 
     # Set up conversation context
     context = OpenAILLMContext(
