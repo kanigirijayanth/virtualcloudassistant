@@ -51,8 +51,7 @@ def test_list_knowledge_bases():
     Tests knowledge base connectivity by directly querying it.
     """
     try:
-        print("
-=== Testing Knowledge Base Connectivity ===")
+        print("=== Testing Knowledge Base Connectivity ===")
         bedrock_agent_runtime = boto3.client(
             service_name='bedrock-agent-runtime',
             region_name='us-east-1'
