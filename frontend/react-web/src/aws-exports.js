@@ -71,3 +71,19 @@ export const avatarFileName = "sophia.glb"
  * @type {string}
  */
 export const avatarJawboneName = "rp_sophia_animated_003_idling_jaw"
+
+/**
+ * Knowledge Base ID for Bedrock
+ * 
+ * @constant
+ * @type {string}
+ */
+export const knowledgeBaseId = "CLRDOVZGIY"
+
+/**
+ * AWS Region for Bedrock services
+ * 
+ * @constant
+ * @type {string}
+ */
+export const bedrockRegion = "us-east-1"

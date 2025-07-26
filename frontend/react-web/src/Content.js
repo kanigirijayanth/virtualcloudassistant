@@ -26,7 +26,8 @@ import { Navbar, Spinner, Modal, Button, Nav, NavDropdown } from 'react-bootstra
 import Avatar from './Avatar'
 import KnowledgeBaseResult from './KnowledgeBaseResult';
 import './App.css';
-import { apiKey, apiUrl, avatarFileName, avatarJawboneName } from './aws-exports'
+import { apiKey, apiUrl, avatarFileName, avatarJawboneName, knowledgeBaseId, bedrockRegion } from './aws-exports'
+import { logInfo, logError, logDebug, logWarn, KnowledgeBaseLogger, WebSocketLogger } from './utils/debugUtils';
 
 // Audio sample rate. It should match the same in the backend to avoid resampling overhead.
 const SAMPLE_RATE = 16000;
@@ -137,6 +138,16 @@ function Content({ signOut, user }) {
                     setTalking(false);
                 } else if (event.data === 'stopped') {
                     setTalking(false);
+                } else if (event.data === 'bufferReset') {
+                    console.warn('Audio buffer was reset, attempting to recover connection');
+                    // Try to recover by reinitializing the connection if engaged
+                    if (isEngaged) {
+                        // Briefly disengage and re-engage
+                        setEngaged(false);
+                        setTimeout(() => {
+                            setEngaged(true);
+                        }, 1000);
+                    }
                 }
             };
 
@@ -243,9 +254,27 @@ function Content({ signOut, user }) {
                 wsRef.current = new WebSocket(apiUrl, apiKey);
                 
                 wsRef.current.onopen = async () => {
-                    console.log('WebSocket connected');
+                    logInfo('WebSocket', 'Connected successfully', { url: apiUrl });
+                    WebSocketLogger.logConnection(apiUrl);
                     reconnectAttempts = 0; // Reset reconnect attempts on successful connection
                     await initMicrophone();
+                    
+                    // Send knowledge base configuration
+                    if (wsRef.current?.readyState === WebSocket.OPEN) {
+                        try {
+                            const configMessage = {
+                                type: 'config',
+                                knowledgeBaseId: knowledgeBaseId,
+                                region: bedrockRegion
+                            };
+                            
+                            logInfo('WebSocket', 'Sending knowledge base configuration', configMessage);
+                            wsRef.current.send(JSON.stringify(configMessage));
+                            WebSocketLogger.logMessage('sent', configMessage);
+                        } catch (error) {
+                            logError('WebSocket', 'Error sending knowledge base configuration', error);
+                        }
+                    }
                     
                     // Setup heartbeat to keep connection alive
                     heartbeatInterval = setInterval(() => {
@@ -254,7 +283,7 @@ function Content({ signOut, user }) {
                                 // Send a ping message to keep the connection alive
                                 wsRef.current.send(JSON.stringify({ type: 'ping' }));
                             } catch (error) {
-                                console.error('Error sending heartbeat:', error);
+                                logError('WebSocket', 'Error sending heartbeat', error);
                             }
                         }
                     }, 30000); // Every 30 seconds
@@ -316,20 +345,166 @@ function Content({ signOut, user }) {
                                 isMine: chunk.speaker === 'user',
                                 text: chunk.data
                             }]);
+                        } else if (chunk.event === 'kb_processing') {
+                            // Handle knowledge base processing notification
+                            try {
+                                logInfo('KnowledgeBase', 'Processing event received', chunk.data);
+                                
+                                let processingData;
+                                try {
+                                    processingData = JSON.parse(chunk.data);
+                                    logDebug('KnowledgeBase', 'Processing details', processingData);
+                                } catch (parseError) {
+                                    logError('KnowledgeBase', 'Failed to parse processing data', {
+                                        error: parseError,
+                                        rawData: chunk.data
+                                    });
+                                    processingData = { message: "Processing document query..." };
+                                }
+                                
+                                // Log knowledge base ID if available
+                                if (processingData.knowledgeBaseId) {
+                                    logInfo('KnowledgeBase', 'Using knowledge base ID', processingData.knowledgeBaseId);
+                                    
+                                    // Verify it matches our configured ID
+                                    if (processingData.knowledgeBaseId !== knowledgeBaseId) {
+                                        logWarn('KnowledgeBase', 'Knowledge base ID mismatch', {
+                                            expected: knowledgeBaseId,
+                                            actual: processingData.knowledgeBaseId
+                                        });
+                                    }
+                                } else {
+                                    logWarn('KnowledgeBase', 'No knowledge base ID specified in processing data');
+                                }
+                                
+                                // Enable knowledge base mode in audio processor
+                                audioWorkletNodeRef.current?.port.postMessage({
+                                    type: 'kb_mode_on'
+                                });
+                                
+                                // Show loading indicator for knowledge base queries
+                                setMessages(messages => [...messages, {
+                                    isMine: false,
+                                    isProcessing: true,
+                                    text: processingData.message || "Processing document query..."
+                                }]);
+                            } catch (error) {
+                                logError('KnowledgeBase', 'Error processing notification', {
+                                    error,
+                                    rawData: chunk.data
+                                });
+                                
+                                // Show error message
+                                setMessages(messages => [...messages, {
+                                    isMine: false,
+                                    text: `Error processing knowledge base query: ${error.message}`
+                                }]);
+                            }
                         } else if (chunk.event === 'knowledge_base') {
                             // Handle knowledge base responses
                             try {
-                                const kbData = JSON.parse(chunk.data);
-                                setMessages(messages => [...messages, {
-                                    isMine: false,
-                                    isKnowledgeBase: true,
-                                    title: kbData.title || "Knowledge Base Result",
-                                    content: kbData.content,
-                                    source: kbData.source,
-                                    metadata: kbData.metadata
-                                }]);
+                                logInfo('KnowledgeBase', 'Response received');
+                                logDebug('KnowledgeBase', 'Raw response data', chunk.data);
+                                
+                                let kbData;
+                                try {
+                                    kbData = JSON.parse(chunk.data);
+                                    KnowledgeBaseLogger.logResponse(kbData);
+                                } catch (parseError) {
+                                    logError('KnowledgeBase', 'Failed to parse response data', {
+                                        error: parseError,
+                                        rawData: chunk.data
+                                    });
+                                    throw new Error(`Failed to parse knowledge base response: ${parseError.message}`);
+                                }
+                                
+                                // Validate knowledge base data structure
+                                if (!kbData) {
+                                    logError('KnowledgeBase', 'Empty response received');
+                                    throw new Error('Empty knowledge base response received');
+                                }
+                                
+                                // Log detailed information about the knowledge base response
+                                logDebug('KnowledgeBase', 'Response structure', {
+                                    hasTitle: !!kbData.title,
+                                    hasContent: !!kbData.content,
+                                    contentType: kbData.content ? (Array.isArray(kbData.content) ? 'array' : typeof kbData.content) : 'undefined',
+                                    contentLength: kbData.content ? (Array.isArray(kbData.content) ? kbData.content.length : kbData.content.length) : 0,
+                                    hasSource: !!kbData.source,
+                                    hasMetadata: !!kbData.metadata
+                                });
+                                
+                                // Check if the response contains retrievalResults directly
+                                if (kbData.retrievalResults && Array.isArray(kbData.retrievalResults)) {
+                                    logInfo('KnowledgeBase', 'Direct Bedrock response detected, transforming to expected format');
+                                    
+                                    // Transform the Bedrock response to the expected format
+                                    const transformedContent = kbData.retrievalResults.map(item => ({
+                                        content: item.content?.text || 'No content available',
+                                        source: item.location?.s3Location?.uri || 'Unknown source',
+                                        score: item.score || 0
+                                    }));
+                                    
+                                    // Replace the original content with the transformed content
+                                    kbData = {
+                                        title: "Knowledge Base Results",
+                                        content: transformedContent,
+                                        metadata: {
+                                            processing_time: {
+                                                retrieval: "N/A",
+                                                generation: "N/A",
+                                                total: "N/A"
+                                            }
+                                        }
+                                    };
+                                    
+                                    logDebug('KnowledgeBase', 'Transformed response', kbData);
+                                }
+                                
+                                // Disable knowledge base mode in audio processor
+                                audioWorkletNodeRef.current?.port.postMessage({
+                                    type: 'kb_mode_off'
+                                });
+                                
+                                // Small delay to ensure audio processing continues
+                                setTimeout(() => {
+                                    setMessages(messages => {
+                                        // Remove the processing message
+                                        const filteredMessages = messages.filter(m => !m.isProcessing);
+                                        
+                                        // Add the actual knowledge base result
+                                        return [...filteredMessages, {
+                                            isMine: false,
+                                            isKnowledgeBase: true,
+                                            title: kbData.title || "Knowledge Base Result",
+                                            content: kbData.content || "No content available",
+                                            source: kbData.source,
+                                            metadata: kbData.metadata
+                                        }];
+                                    });
+                                }, 500);
                             } catch (error) {
-                                console.error('Error processing knowledge base data:', error);
+                                logError('KnowledgeBase', 'Error processing response', {
+                                    error,
+                                    rawData: chunk.data
+                                });
+                                
+                                // Add fallback message on error with specific error details
+                                setMessages(messages => {
+                                    // Remove the processing message
+                                    const filteredMessages = messages.filter(m => !m.isProcessing);
+                                    
+                                    // Add error message with specific error details
+                                    return [...filteredMessages, {
+                                        isMine: false,
+                                        text: `Error retrieving information from the knowledge base: ${error.message}. Please try rephrasing your question.`
+                                    }];
+                                });
+                                
+                                // Disable knowledge base mode in audio processor even on error
+                                audioWorkletNodeRef.current?.port.postMessage({
+                                    type: 'kb_mode_off'
+                                });
                             }
                         } else if (chunk.type === 'pong') {
                             // Handle heartbeat response if needed
@@ -347,12 +522,30 @@ function Content({ signOut, user }) {
                 };
                 
                 wsRef.current.onerror = (error) => {
-                    console.error('WebSocket error:', error);
+                    logError('WebSocket', 'Connection error', {
+                        error,
+                        readyState: wsRef.current?.readyState,
+                        url: apiUrl
+                    });
+                    WebSocketLogger.logError(error);
+                    
+                    // Add error message to chat
+                    setMessages(messages => [...messages, {
+                        isMine: false,
+                        text: "Connection error. Please try reconnecting."
+                    }]);
+                    
                     setTalking(false);
                 };
                 
                 wsRef.current.onclose = (event) => {
-                    console.log('WebSocket closed', event);
+                    logInfo('WebSocket', 'Connection closed', {
+                        code: event.code,
+                        reason: event.reason,
+                        wasClean: event.wasClean
+                    });
+                    WebSocketLogger.logClose(event);
+                    
                     setTalking(false);
                     
                     // Clear heartbeat interval
@@ -363,14 +556,18 @@ function Content({ signOut, user }) {
                     
                     // Attempt to reconnect if still engaged
                     if (isEngaged && reconnectAttempts < maxReconnectAttempts) {
-                        console.log(`Attempting to reconnect (${reconnectAttempts + 1}/${maxReconnectAttempts})...`);
+                        logInfo('WebSocket', 'Attempting to reconnect', {
+                            attempt: reconnectAttempts + 1,
+                            maxAttempts: maxReconnectAttempts
+                        });
+                        
                         reconnectAttempts++;
                         
                         reconnectTimeout = setTimeout(() => {
                             connect();
                         }, reconnectInterval);
                     } else if (reconnectAttempts >= maxReconnectAttempts) {
-                        console.error('Max reconnection attempts reached');
+                        logError('WebSocket', 'Max reconnection attempts reached');
                         setEngaged(false);
                     }
                 };
@@ -429,7 +626,11 @@ function Content({ signOut, user }) {
                 <div className="chat-messages">
                     {messages.map((message, index) => (
                         <div key={index} className={`message ${message.isMine ? 'mine' : 'assistant'}`}>
-                            {message.isKnowledgeBase ? (
+                            {message.isProcessing ? (
+                                <div className="message-text processing">
+                                    {message.text} <Spinner animation="border" size="sm" />
+                                </div>
+                            ) : message.isKnowledgeBase ? (
                                 <KnowledgeBaseResult
                                     title={message.title}
                                     content={message.content}

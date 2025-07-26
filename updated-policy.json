@@ -1,0 +1,59 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Action": [
+                "bedrock:Converse",
+                "bedrock:InvokeAgent",
+                "bedrock:InvokeAgentAlias",
+                "bedrock:InvokeModel",
+                "bedrock:Retrieve",
+                "bedrock:RetrieveAgent",
+                "bedrock:RetrieveAndGenerate",
+                "bedrock-agent-runtime:Retrieve",
+                "bedrock-agent-runtime:RetrieveAndGenerate"
+            ],
+            "Resource": [
+                "arn:aws:bedrock:us-east-1:*:agent-alias/*",
+                "arn:aws:bedrock:us-east-1:*:agent/*",
+                "arn:aws:bedrock:us-east-1:*:knowledge-base/*",
+                "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:*",
+                "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-sonic-v1:*",
+                "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-sonic-v1:0"
+            ],
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "bedrock:InvokeModel",
+                "bedrock:InvokeModelWithResponseStream",
+                "bedrock-agent-runtime:Retrieve",
+                "bedrock-agent-runtime:RetrieveAndGenerate",
+                "ecr:GetAuthorizationToken",
+                "ssmmessages:CreateControlChannel",
+                "ssmmessages:CreateDataChannel",
+                "ssmmessages:OpenControlChannel",
+                "ssmmessages:OpenDataChannel"
+            ],
+            "Resource": "*",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:BatchGetImage",
+                "ecr:GetDownloadUrlForLayer"
+            ],
+            "Resource": "arn:aws:ecr:us-east-1:429410042050:repository/cdk-hnb659fds-container-assets-429410042050-us-east-1",
+            "Effect": "Allow"
+        },
+        {
+            "Action": [
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ],
+            "Resource": "arn:aws:logs:us-east-1:429410042050:log-group:VirtualClouldAssistantCdkStack-VirtualCloudAssistantTaskDefVirtualCloudAssistantContainerLogGroup51F6860A-XeTLZJaAotxw:*",
+            "Effect": "Allow"
+        }
+    ]
+}

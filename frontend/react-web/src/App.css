@@ -74,3 +74,17 @@
   overflow-y: auto;
   white-space: pre-wrap;
 }
+
+/* Processing message styling */
+.message-text.processing {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  opacity: 0.8;
+  font-style: italic;
+}
+
+.message-text.processing .spinner-border {
+  width: 1rem;
+  height: 1rem;
+}

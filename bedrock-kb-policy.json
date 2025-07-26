@@ -1,0 +1,25 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Action": [
+                "bedrock-runtime:InvokeModel",
+                "bedrock-runtime:InvokeModelWithResponseStream"
+            ],
+            "Resource": [
+                "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "bedrock-agent-runtime:Retrieve",
+                "bedrock-agent-runtime:RetrieveAndGenerate"
+            ],
+            "Resource": [
+                "arn:aws:bedrock:us-east-1:*:knowledge-base/CLRDOVZGIY"
+            ]
+        }
+    ]
+}

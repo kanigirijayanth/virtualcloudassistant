@@ -114,7 +114,8 @@ from bedrock_kb_functions import (
     query_knowledge_base,
     get_document_by_id,
     search_documents,
-    format_kb_response
+    format_kb_response,
+    refresh_bedrock_clients
 )
 
 # Update the AWS account service with the absolute path to the CSV file
@@ -284,6 +285,9 @@ async def setup(websocket: WebSocket):
     """
     update_dredentials()
     
+    # Also refresh Bedrock clients for knowledge base operations
+    refresh_bedrock_clients()
+    
     system_instruction = Path('prompt.txt').read_text() + f"\n{AWSNovaSonicLLMService.AWAIT_TRIGGER_ASSISTANT_RESPONSE_INSTRUCTION}"
 
     # Configure WebSocket transport with audio processing capabilities
@@ -326,10 +330,61 @@ async def setup(websocket: WebSocket):
     llm.register_function("get_accounts_by_year", get_accounts_by_year)
     llm.register_function("get_accounts_by_year_summary", get_accounts_by_year_summary)
     
-    # Register Bedrock knowledge base functions
-    llm.register_function("query_knowledge_base", query_knowledge_base)
-    llm.register_function("get_document_by_id", get_document_by_id)
-    llm.register_function("search_documents", search_documents)
+    # Define wrapper functions that handle credential refresh
+    def wrapped_query_knowledge_base(query, max_results=5):
+        try:
+            print(f"Attempting knowledge base query: {query}")
+            refresh_bedrock_clients()  # Refresh credentials before calling
+            result = query_knowledge_base(query, max_results)
+            print(f"Knowledge base query result status: {result.get('status')}")
+            return result
+        except Exception as e:
+            print(f"ERROR in wrapped_query_knowledge_base: {str(e)}")
+            traceback.print_exc()
+            return {
+                'status': 'error',
+                'message': f"Knowledge base query failed: {str(e)}",
+                'query': query,
+                'results': []
+            }
+
+    def wrapped_get_document_by_id(document_id):
+        try:
+            print(f"Attempting to get document by ID: {document_id}")
+            refresh_bedrock_clients()  # Refresh credentials before calling
+            result = get_document_by_id(document_id)
+            print(f"Get document result status: {result.get('status')}")
+            return result
+        except Exception as e:
+            print(f"ERROR in wrapped_get_document_by_id: {str(e)}")
+            traceback.print_exc()
+            return {
+                'status': 'error',
+                'message': f"Document retrieval failed: {str(e)}",
+                'document_id': document_id
+            }
+
+    def wrapped_search_documents(keywords, document_type=None, max_results=10):
+        try:
+            print(f"Attempting to search documents with keywords: {keywords}, type: {document_type}")
+            refresh_bedrock_clients()  # Refresh credentials before calling
+            result = search_documents(keywords, document_type, max_results)
+            print(f"Search documents result status: {result.get('status')}")
+            return result
+        except Exception as e:
+            print(f"ERROR in wrapped_search_documents: {str(e)}")
+            traceback.print_exc()
+            return {
+                'status': 'error',
+                'message': f"Document search failed: {str(e)}",
+                'keywords': keywords,
+                'results': []
+            }
+
+    # Register Bedrock knowledge base functions using wrapper functions
+    llm.register_function("query_knowledge_base", wrapped_query_knowledge_base)
+    llm.register_function("get_document_by_id", wrapped_get_document_by_id)
+    llm.register_function("search_documents", wrapped_search_documents)
 
     # Set up conversation context
     context = OpenAILLMContext(

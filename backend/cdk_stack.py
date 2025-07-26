@@ -113,7 +113,9 @@ class CdkStack(Stack):
                     "bedrock:Converse",
                     "bedrock:InvokeAgentAlias",
                     "bedrock:Retrieve",  # For knowledge base retrieval
-                    "bedrock:RetrieveAndGenerate"  # For knowledge base retrieval with generation
+                    "bedrock:RetrieveAndGenerate",  # For knowledge base retrieval with generation
+                    "bedrock-agent-runtime:Retrieve",  # For knowledge base retrieval with agent runtime
+                    "bedrock-agent-runtime:RetrieveAndGenerate"  # For knowledge base retrieval and generation with agent runtime
                 ],
                 resources=[
                     "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-sonic-v1:0",
@@ -126,13 +128,30 @@ class CdkStack(Stack):
             )
         )
         
+        # Add specific permission for the CLRDOVZGIY knowledge base
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "bedrock-agent-runtime:Retrieve",
+                    "bedrock-agent-runtime:RetrieveAndGenerate"
+                ],
+                resources=[
+                    "arn:aws:bedrock:us-east-1:*:knowledge-base/CLRDOVZGIY"
+                ]
+            )
+        )
+        
         # Add additional permissions for Bedrock runtime
         task_role.add_to_policy(
             iam.PolicyStatement(
                 effect=iam.Effect.ALLOW,
                 actions=[
                     "bedrock:InvokeModel",
-                    "bedrock:InvokeModelWithResponseStream"
+                    "bedrock:InvokeModelWithResponseStream",
+                    "bedrock-agent-runtime:Retrieve",  # For knowledge base retrieval with agent runtime
+                    "bedrock-agent-runtime:RetrieveAndGenerate",  # For knowledge base retrieval and generation with agent runtime
+                    "bedrock-agent-runtime:ListKnowledgeBases"  # Added permission to list knowledge bases
                 ],
                 resources=["*"]
             )
