@@ -128,6 +128,22 @@ class CdkStack(Stack):
             )
         )
         
+        # Add CloudWatch Logs permissions
+        task_role.add_to_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=[
+                    "logs:CreateLogGroup",
+                    "logs:CreateLogStream",
+                    "logs:PutLogEvents",
+                    "logs:DescribeLogGroups",
+                    "logs:DescribeLogStreams",
+                    "logs:PutRetentionPolicy"
+                ],
+                resources=["*"]
+            )
+        )
+        
         # Add specific permission for the CLRDOVZGIY knowledge base
         task_role.add_to_policy(
             iam.PolicyStatement(

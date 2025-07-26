@@ -10,7 +10,30 @@ import boto3
 import json
 import os
 import time
+import traceback
 from typing import Dict, List, Any, Optional
+
+# Import CloudWatch logger
+try:
+    from cloudwatch_logger import (
+        log_knowledge_base_request,
+        log_knowledge_base_response,
+        log_error
+    )
+    CLOUDWATCH_LOGGING_ENABLED = True
+except ImportError:
+    print("CloudWatch logger not available, logging will be disabled")
+    CLOUDWATCH_LOGGING_ENABLED = False
+    
+    # Define dummy logging functions
+    def log_knowledge_base_request(*args, **kwargs):
+        pass
+    
+    def log_knowledge_base_response(*args, **kwargs):
+        pass
+    
+    def log_error(*args, **kwargs):
+        pass
 
 # Function to refresh credentials for Bedrock clients
 def refresh_bedrock_clients():
@@ -28,7 +51,10 @@ def refresh_bedrock_clients():
         session_token = os.environ.get("AWS_SESSION_TOKEN")
         
         if not access_key or not secret_key:
-            print("WARNING: Missing AWS credentials for Bedrock clients")
+            error_msg = "WARNING: Missing AWS credentials for Bedrock clients"
+            print(error_msg)
+            if CLOUDWATCH_LOGGING_ENABLED:
+                log_error(error_msg)
             return
             
         # Create new clients with the latest credentials
@@ -76,12 +102,17 @@ def refresh_bedrock_clients():
                 print(f"Knowledge base {KNOWLEDGE_BASE_ID} returned no results for test query")
                 
         except Exception as e:
-            print(f"WARNING: Bedrock client test failed: {str(e)}")
+            error_msg = f"WARNING: Bedrock client test failed: {str(e)}"
+            print(error_msg)
+            if CLOUDWATCH_LOGGING_ENABLED:
+                log_error(error_msg, {"exception": str(e)})
             
     except Exception as e:
-        print(f"ERROR refreshing Bedrock clients: {str(e)}")
-        import traceback
+        error_msg = f"ERROR refreshing Bedrock clients: {str(e)}"
+        print(error_msg)
         traceback.print_exc()
+        if CLOUDWATCH_LOGGING_ENABLED:
+            log_error(error_msg, {"exception": str(e), "traceback": traceback.format_exc()})
 
 # Initialize Bedrock clients
 bedrock_runtime = boto3.client(
@@ -120,9 +151,24 @@ def query_knowledge_base(query: str, max_results: int = 5) -> Dict[str, Any]:
         print(f"Using knowledge base ID: {KNOWLEDGE_BASE_ID}")
         start_time = time.time()
         
+        # Log the request to CloudWatch
+        if CLOUDWATCH_LOGGING_ENABLED:
+            log_knowledge_base_request(query, max_results)
+        
         # Step 1: Retrieve relevant documents from the knowledge base using bedrock-agent-runtime
         try:
             print("Attempting to retrieve documents from knowledge base...")
+            # Ensure max_results is an integer
+            if not isinstance(max_results, int):
+                try:
+                    max_results_int = int(max_results)
+                    print(f"Converting max_results from {type(max_results)} to int: {max_results} -> {max_results_int}")
+                except (ValueError, TypeError):
+                    print(f"Invalid max_results value: {max_results}, using default value of 5")
+                    max_results_int = 5
+            else:
+                max_results_int = max_results
+                
             retrieval_response = bedrock_agent_runtime.retrieve(
                 knowledgeBaseId=KNOWLEDGE_BASE_ID,
                 retrievalQuery={
@@ -130,16 +176,24 @@ def query_knowledge_base(query: str, max_results: int = 5) -> Dict[str, Any]:
                 },
                 retrievalConfiguration={
                     'vectorSearchConfiguration': {
-                        'numberOfResults': max_results
+                        'numberOfResults': max_results_int
                     }
                 }
             )
             print(f"Successfully retrieved documents from knowledge base: {KNOWLEDGE_BASE_ID}")
             print(f"Retrieved {len(retrieval_response.get('retrievalResults', []))} documents")
         except Exception as e:
-            print(f"ERROR during knowledge base retrieval: {str(e)}")
-            import traceback
+            error_msg = f"ERROR during knowledge base retrieval: {str(e)}"
+            print(error_msg)
             traceback.print_exc()
+            
+            if CLOUDWATCH_LOGGING_ENABLED:
+                log_error(error_msg, {
+                    "query": query,
+                    "exception": str(e),
+                    "traceback": traceback.format_exc()
+                })
+                
             return {
                 'status': 'error',
                 'message': f"Failed to retrieve from knowledge base: {str(e)}",
@@ -211,8 +265,8 @@ def query_knowledge_base(query: str, max_results: int = 5) -> Dict[str, Any]:
                 generation_time = time.time() - generation_start
                 print(f"Nova Lite response generation completed in {generation_time:.2f} seconds")
                 
-                # Return both the retrieval results and the generated answer
-                return {
+                # Create the result
+                result = {
                     'status': 'success',
                     'query': query,
                     'results': retrieval_results,
@@ -224,31 +278,66 @@ def query_knowledge_base(query: str, max_results: int = 5) -> Dict[str, Any]:
                     }
                 }
                 
+                # Log the response to CloudWatch
+                if CLOUDWATCH_LOGGING_ENABLED:
+                    log_knowledge_base_response(query, result)
+                
+                # Return both the retrieval results and the generated answer
+                return result
+                
             except Exception as e:
-                print(f"ERROR generating response with Nova Lite: {str(e)}")
-                import traceback
+                error_msg = f"ERROR generating response with Nova Lite: {str(e)}"
+                print(error_msg)
                 traceback.print_exc()
+                
+                if CLOUDWATCH_LOGGING_ENABLED:
+                    log_error(error_msg, {
+                        "query": query,
+                        "exception": str(e),
+                        "traceback": traceback.format_exc()
+                    })
+                
                 # Fall back to just returning retrieval results
-                return {
+                result = {
                     'status': 'partial_success',
                     'query': query,
                     'results': retrieval_results,
                     'error': f"Failed to generate response: {str(e)}"
                 }
+                
+                # Log the partial response to CloudWatch
+                if CLOUDWATCH_LOGGING_ENABLED:
+                    log_knowledge_base_response(query, result)
+                
+                return result
         else:
             # No good results found
             print(f"No relevant documents found for query: {query}")
-            return {
+            result = {
                 'status': 'no_relevant_documents',
                 'query': query,
                 'results': retrieval_results,
                 'message': "No relevant documents found in the knowledge base."
             }
             
+            # Log the empty response to CloudWatch
+            if CLOUDWATCH_LOGGING_ENABLED:
+                log_knowledge_base_response(query, result)
+            
+            return result
+            
     except Exception as e:
-        print(f"ERROR querying knowledge base: {str(e)}")
-        import traceback
+        error_msg = f"ERROR querying knowledge base: {str(e)}"
+        print(error_msg)
         traceback.print_exc()
+        
+        if CLOUDWATCH_LOGGING_ENABLED:
+            log_error(error_msg, {
+                "query": query,
+                "exception": str(e),
+                "traceback": traceback.format_exc()
+            })
+        
         return {
             'status': 'error',
             'message': f"Failed to query knowledge base: {str(e)}",

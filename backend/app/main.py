@@ -288,6 +288,20 @@ async def setup(websocket: WebSocket):
     # Also refresh Bedrock clients for knowledge base operations
     refresh_bedrock_clients()
     
+    # Initialize CloudWatch logger if available
+    try:
+        from cloudwatch_logger import initialize_cloudwatch_client, ensure_log_group_exists, create_log_stream
+        print("Initializing CloudWatch logger...")
+        initialize_cloudwatch_client()
+        ensure_log_group_exists()
+        log_stream = create_log_stream()
+        print(f"CloudWatch logging enabled with log stream: {log_stream}")
+    except ImportError:
+        print("CloudWatch logger not available, logging will be disabled")
+    except Exception as e:
+        print(f"Error initializing CloudWatch logger: {str(e)}")
+        traceback.print_exc()
+    
     system_instruction = Path('prompt.txt').read_text() + f"\n{AWSNovaSonicLLMService.AWAIT_TRIGGER_ASSISTANT_RESPONSE_INSTRUCTION}"
 
     # Configure WebSocket transport with audio processing capabilities
@@ -345,11 +359,34 @@ async def setup(websocket: WebSocket):
                 if 'generated_answer' in result:
                     print(f"Generated answer length: {len(result.get('generated_answer', ''))}")
                     print(f"Generated answer preview: {result.get('generated_answer', '')[:100]}...")
+                    
+                    # Log the full generated answer for debugging
+                    print(f"FULL GENERATED ANSWER: {result.get('generated_answer', '')}")
+                    
+                    # Import CloudWatch logger if available
+                    try:
+                        from cloudwatch_logger import log_knowledge_base_response
+                        log_knowledge_base_response(query, result)
+                    except ImportError:
+                        pass
             
             return result
         except Exception as e:
             print(f"ERROR in wrapped_query_knowledge_base: {str(e)}")
             traceback.print_exc()
+            
+            # Log the error to CloudWatch if available
+            try:
+                from cloudwatch_logger import log_error
+                log_error(f"Error in wrapped_query_knowledge_base: {str(e)}", {
+                    "query": query,
+                    "max_results": max_results,
+                    "exception": str(e),
+                    "traceback": traceback.format_exc()
+                })
+            except ImportError:
+                pass
+                
             return {
                 'status': 'error',
                 'message': f"Knowledge base query failed: {str(e)}",
@@ -369,11 +406,30 @@ async def setup(websocket: WebSocket):
             if result.get('status') == 'success':
                 print(f"Document content length: {len(result.get('content', ''))}")
                 print(f"Document source: {result.get('source', 'Unknown')}")
+                
+                # Log the document retrieval to CloudWatch if available
+                try:
+                    from cloudwatch_logger import log_knowledge_base_response
+                    log_knowledge_base_response(f"document_id:{document_id}", result)
+                except ImportError:
+                    pass
             
             return result
         except Exception as e:
             print(f"ERROR in wrapped_get_document_by_id: {str(e)}")
             traceback.print_exc()
+            
+            # Log the error to CloudWatch if available
+            try:
+                from cloudwatch_logger import log_error
+                log_error(f"Error in wrapped_get_document_by_id: {str(e)}", {
+                    "document_id": document_id,
+                    "exception": str(e),
+                    "traceback": traceback.format_exc()
+                })
+            except ImportError:
+                pass
+                
             return {
                 'status': 'error',
                 'message': f"Document retrieval failed: {str(e)}",
@@ -393,11 +449,32 @@ async def setup(websocket: WebSocket):
                 print(f"Found {len(result.get('results', []))} documents")
                 for i, doc in enumerate(result.get('results', [])[:2]):
                     print(f"Document {i+1}: {doc.get('title', 'Unknown')} - {doc.get('source', 'Unknown')}")
+                
+                # Log the search results to CloudWatch if available
+                try:
+                    from cloudwatch_logger import log_knowledge_base_response
+                    log_knowledge_base_response(f"search:{keywords}", result)
+                except ImportError:
+                    pass
             
             return result
         except Exception as e:
             print(f"ERROR in wrapped_search_documents: {str(e)}")
             traceback.print_exc()
+            
+            # Log the error to CloudWatch if available
+            try:
+                from cloudwatch_logger import log_error
+                log_error(f"Error in wrapped_search_documents: {str(e)}", {
+                    "keywords": keywords,
+                    "document_type": document_type,
+                    "max_results": max_results,
+                    "exception": str(e),
+                    "traceback": traceback.format_exc()
+                })
+            except ImportError:
+                pass
+                
             return {
                 'status': 'error',
                 'message': f"Document search failed: {str(e)}",
@@ -465,6 +542,15 @@ async def setup(websocket: WebSocket):
         """Logs transcript updates with timestamps."""
         for message in frame.messages:
             print(f"Transcript: [{message.timestamp}] {message.role}: {message.content}")
+            
+            # Check if this is a knowledge base related message
+            if message.role == "assistant" and any(kb_term in message.content.lower() for kb_term in 
+                                                ["knowledge base", "documentation", "found information", "sop", "lld", "hld"]):
+                try:
+                    from cloudwatch_logger import log_nova_sonic_input
+                    log_nova_sonic_input(f"Nova Sonic response: {message.content}")
+                except ImportError:
+                    pass
 
     runner = PipelineRunner(handle_sigint=False, force_gc=True)
     await runner.run(task)

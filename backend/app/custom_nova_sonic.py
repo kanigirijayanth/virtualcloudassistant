@@ -14,6 +14,21 @@ from typing import Dict, Any, Optional, List, Callable
 from aws import AWSNovaSonicLLMService, Params
 from bedrock_kb_functions import format_kb_response
 
+# Import CloudWatch logger if available
+try:
+    from cloudwatch_logger import log_nova_sonic_input, log_error
+    CLOUDWATCH_LOGGING_ENABLED = True
+except ImportError:
+    print("CloudWatch logger not available, logging will be disabled")
+    CLOUDWATCH_LOGGING_ENABLED = False
+    
+    # Define dummy logging functions
+    def log_nova_sonic_input(*args, **kwargs):
+        pass
+    
+    def log_error(*args, **kwargs):
+        pass
+
 class CustomNovaSonicService(AWSNovaSonicLLMService):
     """
     Custom AWS Nova Sonic service that extends the original service to handle knowledge base responses.
@@ -27,6 +42,10 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
         self._silent_audio_frames = self._generate_silent_audio_frames()
         # Flag to track if we're currently processing a knowledge base query
         self._processing_kb_query = False
+        # Store the last knowledge base response
+        self._last_kb_response = None
+        # Flag to track if we need to send the knowledge base response to Nova Sonic
+        self._kb_response_pending = False
     
     def set_transport(self, transport):
         """Set the transport to use for sending knowledge base responses."""
@@ -52,7 +71,10 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                 await self.transport.websocket.send_text(json.dumps(data))
                 return True
             except Exception as e:
-                print(f"Error sending JSON to client: {str(e)}")
+                error_msg = f"Error sending JSON to client: {str(e)}"
+                print(error_msg)
+                if CLOUDWATCH_LOGGING_ENABLED:
+                    log_error(error_msg, {"exception": str(e)})
                 return False
         return False
     
@@ -93,11 +115,29 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                             query = args[0]
                         elif "query" in kwargs:
                             query = kwargs["query"]
+                        else:
+                            query = ""
                             
+                        # Set a default value for max_results
+                        max_results = 5
+                        
+                        # Only use the second argument if it's actually an integer or can be converted to one
                         if len(args) > 1:
-                            max_results = args[1]
+                            if isinstance(args[1], int):
+                                max_results = args[1]
+                            else:
+                                try:
+                                    max_results = int(args[1])
+                                except (ValueError, TypeError):
+                                    print(f"Warning: Invalid max_results value in args: {args[1]}, using default value of 5")
                         elif "max_results" in kwargs:
-                            max_results = kwargs["max_results"]
+                            if isinstance(kwargs["max_results"], int):
+                                max_results = kwargs["max_results"]
+                            else:
+                                try:
+                                    max_results = int(kwargs["max_results"])
+                                except (ValueError, TypeError):
+                                    print(f"Warning: Invalid max_results value in kwargs: {kwargs['max_results']}, using default value of 5")
                             
                     elif name == "get_document_by_id":
                         if args and len(args) > 0:
@@ -119,7 +159,12 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                         if len(args) > 2:
                             max_results = args[2]
                         elif "max_results" in kwargs:
-                            max_results = kwargs["max_results"]
+                            # Ensure max_results is an integer
+                            if isinstance(kwargs["max_results"], dict):
+                                print(f"WARNING: max_results is a dictionary: {kwargs['max_results']}, using default value of 10")
+                                max_results = 10
+                            else:
+                                max_results = kwargs["max_results"]
                     
                     # First send a processing notification to the frontend
                     await self._send_json_to_client({
@@ -161,21 +206,80 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                         "data": json.dumps(formatted_result)
                     })
                     
-                    # Stop the heartbeat audio after sending the result
-                    self._stop_heartbeat_audio()
-                    self._processing_kb_query = False
+                    # Store the result for Nova Sonic to use
+                    self._last_kb_response = result
+                    self._kb_response_pending = True
                     
-                    # Return the original result for the LLM to process
-                    return result
+                    # Prepare a response for Nova Sonic
+                    if name == "query_knowledge_base" and result.get('status') == 'success' and 'generated_answer' in result:
+                        # Create a message for Nova Sonic that includes the generated answer
+                        nova_sonic_message = f"I found information in the knowledge base about '{query}'.\n\n{result['generated_answer']}"
+                        
+                        # Log the message being sent to Nova Sonic
+                        if CLOUDWATCH_LOGGING_ENABLED:
+                            log_nova_sonic_input(nova_sonic_message)
+                        
+                        # Stop the heartbeat audio after sending the result
+                        self._stop_heartbeat_audio()
+                        self._processing_kb_query = False
+                        
+                        # Return the original result for the LLM to process
+                        return {
+                            'status': 'success',
+                            'message': nova_sonic_message,
+                            'original_result': result
+                        }
+                    else:
+                        # For other cases or errors, create a generic message
+                        if result.get('status') == 'error':
+                            nova_sonic_message = f"I encountered an error while searching the knowledge base: {result.get('message', 'Unknown error')}"
+                        elif result.get('status') == 'no_relevant_documents':
+                            nova_sonic_message = f"I searched the knowledge base for information about '{query}', but couldn't find any relevant documents."
+                        else:
+                            nova_sonic_message = f"I found some information in the knowledge base that might be relevant to '{query}', but I couldn't generate a comprehensive answer."
+                        
+                        # Log the message being sent to Nova Sonic
+                        if CLOUDWATCH_LOGGING_ENABLED:
+                            log_nova_sonic_input(nova_sonic_message)
+                        
+                        # Stop the heartbeat audio after sending the result
+                        self._stop_heartbeat_audio()
+                        self._processing_kb_query = False
+                        
+                        # Return the original result for the LLM to process
+                        return {
+                            'status': result.get('status', 'unknown'),
+                            'message': nova_sonic_message,
+                            'original_result': result
+                        }
                     
                 except Exception as e:
                     # Stop the heartbeat audio in case of error
                     self._stop_heartbeat_audio()
                     self._processing_kb_query = False
-                    print(f"Error in knowledge base function: {str(e)}")
+                    
+                    error_msg = f"Error in knowledge base function: {str(e)}"
+                    print(error_msg)
                     traceback.print_exc()
-                    # Re-raise the exception
-                    raise
+                    
+                    if CLOUDWATCH_LOGGING_ENABLED:
+                        log_error(error_msg, {
+                            "function": name,
+                            "args": str(args),
+                            "kwargs": str(kwargs),
+                            "exception": str(e),
+                            "traceback": traceback.format_exc()
+                        })
+                    
+                    # Create an error message for Nova Sonic
+                    nova_sonic_message = f"I encountered an error while trying to search the knowledge base: {str(e)}"
+                    
+                    # Return an error result
+                    return {
+                        'status': 'error',
+                        'message': nova_sonic_message,
+                        'error': str(e)
+                    }
             
             # Register the wrapped function
             super().register_function(name, wrapped_func)
@@ -219,7 +323,10 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
             # Task was cancelled, clean up
             pass
         except Exception as e:
-            print(f"Error in heartbeat audio task: {str(e)}")
+            error_msg = f"Error in heartbeat audio task: {str(e)}"
+            print(error_msg)
+            if CLOUDWATCH_LOGGING_ENABLED:
+                log_error(error_msg, {"exception": str(e)})
     
     async def _send_silent_audio(self, duration_ms):
         """Send a silent audio frame of the specified duration."""
@@ -230,7 +337,10 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                     "data": self._silent_audio_frames[duration_ms]
                 })
             except Exception as e:
-                print(f"Error sending silent audio frame: {str(e)}")
+                error_msg = f"Error sending silent audio frame: {str(e)}"
+                print(error_msg)
+                if CLOUDWATCH_LOGGING_ENABLED:
+                    log_error(error_msg, {"exception": str(e)})
                 
     def is_processing_kb_query(self):
         """Check if we're currently processing a knowledge base query."""
