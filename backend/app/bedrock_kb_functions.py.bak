@@ -50,30 +50,22 @@ def refresh_bedrock_clients():
         
         print("Bedrock clients refreshed successfully")
         
-        # Test the clients to ensure they're working - use a direct retrieve call instead
+        # Test the clients to ensure they're working
         try:
-            # Instead of listing knowledge bases, directly test with a retrieve call
-            print(f"Testing Bedrock agent runtime with knowledge base ID: {KNOWLEDGE_BASE_ID}")
-            test_query = "test query"
-            response = bedrock_agent_runtime.retrieve(
-                knowledgeBaseId=KNOWLEDGE_BASE_ID,
-                retrievalQuery={
-                    'text': test_query
-                },
-                retrievalConfiguration={
-                    'vectorSearchConfiguration': {
-                        'numberOfResults': 1
-                    }
-                }
-            )
+            # Test bedrock-agent-runtime with a simple API call
+            response = bedrock_agent_runtime.list_knowledge_bases(maxResults=1)
+            print(f"Bedrock agent runtime test successful. Found {len(response.get('knowledgeBaseSummaries', []))} knowledge bases")
             
-            results_count = len(response.get('retrievalResults', []))
-            print(f"Bedrock agent runtime test successful. Retrieved {results_count} results")
-            
-            if results_count > 0:
-                print(f"Knowledge base {KNOWLEDGE_BASE_ID} is working correctly")
-            else:
-                print(f"Knowledge base {KNOWLEDGE_BASE_ID} returned no results for test query")
+            # Check if our knowledge base exists
+            kb_found = False
+            for kb in response.get('knowledgeBaseSummaries', []):
+                if kb.get('knowledgeBaseId') == KNOWLEDGE_BASE_ID:
+                    kb_found = True
+                    print(f"Found configured knowledge base: {KNOWLEDGE_BASE_ID}")
+                    break
+                    
+            if not kb_found:
+                print(f"WARNING: Configured knowledge base ID {KNOWLEDGE_BASE_ID} not found!")
                 
         except Exception as e:
             print(f"WARNING: Bedrock client test failed: {str(e)}")

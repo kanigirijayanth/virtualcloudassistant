@@ -330,13 +330,22 @@ async def setup(websocket: WebSocket):
     llm.register_function("get_accounts_by_year", get_accounts_by_year)
     llm.register_function("get_accounts_by_year_summary", get_accounts_by_year_summary)
     
-    # Define wrapper functions that handle credential refresh
+    # Define wrapper functions that handle credential refresh with improved logging
     def wrapped_query_knowledge_base(query, max_results=5):
         try:
-            print(f"Attempting knowledge base query: {query}")
+            print(f"KNOWLEDGE BASE QUERY CALLED: '{query}'")
             refresh_bedrock_clients()  # Refresh credentials before calling
+            
+            print(f"Calling query_knowledge_base with query: '{query}', max_results: {max_results}")
             result = query_knowledge_base(query, max_results)
+            
             print(f"Knowledge base query result status: {result.get('status')}")
+            if result.get('status') == 'success':
+                print(f"Found {len(result.get('results', []))} documents")
+                if 'generated_answer' in result:
+                    print(f"Generated answer length: {len(result.get('generated_answer', ''))}")
+                    print(f"Generated answer preview: {result.get('generated_answer', '')[:100]}...")
+            
             return result
         except Exception as e:
             print(f"ERROR in wrapped_query_knowledge_base: {str(e)}")
@@ -350,10 +359,17 @@ async def setup(websocket: WebSocket):
 
     def wrapped_get_document_by_id(document_id):
         try:
-            print(f"Attempting to get document by ID: {document_id}")
+            print(f"GET DOCUMENT CALLED with ID: {document_id}")
             refresh_bedrock_clients()  # Refresh credentials before calling
+            
+            print(f"Calling get_document_by_id with document_id: {document_id}")
             result = get_document_by_id(document_id)
+            
             print(f"Get document result status: {result.get('status')}")
+            if result.get('status') == 'success':
+                print(f"Document content length: {len(result.get('content', ''))}")
+                print(f"Document source: {result.get('source', 'Unknown')}")
+            
             return result
         except Exception as e:
             print(f"ERROR in wrapped_get_document_by_id: {str(e)}")
@@ -366,10 +382,18 @@ async def setup(websocket: WebSocket):
 
     def wrapped_search_documents(keywords, document_type=None, max_results=10):
         try:
-            print(f"Attempting to search documents with keywords: {keywords}, type: {document_type}")
+            print(f"SEARCH DOCUMENTS CALLED with keywords: '{keywords}', type: {document_type}")
             refresh_bedrock_clients()  # Refresh credentials before calling
+            
+            print(f"Calling search_documents with keywords: '{keywords}', document_type: {document_type}, max_results: {max_results}")
             result = search_documents(keywords, document_type, max_results)
+            
             print(f"Search documents result status: {result.get('status')}")
+            if result.get('status') == 'success':
+                print(f"Found {len(result.get('results', []))} documents")
+                for i, doc in enumerate(result.get('results', [])[:2]):
+                    print(f"Document {i+1}: {doc.get('title', 'Unknown')} - {doc.get('source', 'Unknown')}")
+            
             return result
         except Exception as e:
             print(f"ERROR in wrapped_search_documents: {str(e)}")
