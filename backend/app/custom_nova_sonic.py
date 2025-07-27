@@ -108,6 +108,13 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                     # Print the received arguments for debugging
                     print(f"Function {name} called with args: {args}, kwargs: {kwargs}")
                     
+                    # Check if tool_call_id is being passed and remove it from kwargs
+                    if "tool_call_id" in kwargs:
+                        print(f"Removing tool_call_id from kwargs: {kwargs['tool_call_id']}")
+                        tool_call_id = kwargs.pop("tool_call_id")
+                    else:
+                        tool_call_id = None
+                        
                     # Extract parameters based on function name
                     if name == "query_knowledge_base":
                         # Handle both positional and keyword arguments
@@ -191,6 +198,10 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                         result = original_func(query, document_type, max_results)
                     else:
                         # Fallback
+                        # Remove tool_call_id from kwargs if present
+                        if "tool_call_id" in kwargs:
+                            print(f"Removing tool_call_id from kwargs for function {name}: {kwargs['tool_call_id']}")
+                            kwargs.pop("tool_call_id")
                         result = original_func(*args, **kwargs)
                         
                     processing_time = time.time() - start_time

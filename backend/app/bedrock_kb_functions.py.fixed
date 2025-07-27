@@ -12,7 +12,6 @@ import os
 import time
 import traceback
 from typing import Dict, List, Any, Optional
-import httpx
 
 # Import CloudWatch logger
 try:
@@ -54,35 +53,6 @@ bedrock_agent_runtime = boto3.client(
     region_name='us-east-1'
 )
 
-def refresh_credentials():
-    """
-    Refreshes the AWS credentials from the ECS container metadata endpoint.
-    Returns True if successful, False otherwise.
-    """
-    try:
-        uri = os.environ.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
-        if uri:
-            print("Fetching fresh AWS credentials from ECS metadata endpoint")
-            with httpx.Client() as client:
-                response = client.get(f"http://169.254.170.2{uri}")
-                if response.status_code == 200:
-                    creds = response.json()
-                    os.environ["AWS_ACCESS_KEY_ID"] = creds["AccessKeyId"]
-                    os.environ["AWS_SECRET_ACCESS_KEY"] = creds["SecretAccessKey"]
-                    os.environ["AWS_SESSION_TOKEN"] = creds["Token"]
-                    print("AWS credentials refreshed successfully")
-                    return True
-                else:
-                    print(f"Failed to fetch credentials: {response.status_code}")
-                    return False
-        else:
-            print("No AWS_CONTAINER_CREDENTIALS_RELATIVE_URI found, using existing credentials")
-            return True
-    except Exception as e:
-        print(f"Error refreshing credentials: {str(e)}")
-        traceback.print_exc()
-        return False
-
 # Function to refresh credentials for Bedrock clients
 def refresh_bedrock_clients():
     """
@@ -92,11 +62,6 @@ def refresh_bedrock_clients():
     try:
         print("Refreshing Bedrock clients with latest credentials")
         global bedrock_runtime, bedrock_agent_runtime
-        
-        # First refresh credentials from ECS metadata if available
-        refresh_success = refresh_credentials()
-        if not refresh_success:
-            print("WARNING: Failed to refresh credentials, will try to continue with existing ones")
         
         # Get credentials from environment variables
         access_key = os.environ.get("AWS_ACCESS_KEY_ID")
