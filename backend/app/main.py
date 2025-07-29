@@ -109,13 +109,18 @@ from aws_account_functions import (
     get_accounts_by_year_summary
 )
 
+# Import Bedrock agent functions
+from bedrock_agent_functions import (
+    query_bedrock_agent,
+    initialize_bedrock_agent_client,
+    refresh_bedrock_agent_client
+)
+
 # Import Bedrock knowledge base functions
 from bedrock_kb_functions import (
     query_knowledge_base,
     get_document_by_id,
-    search_documents,
-    format_kb_response,
-    refresh_bedrock_clients
+    search_documents
 )
 
 # Update the AWS account service with the absolute path to the CSV file
@@ -285,8 +290,8 @@ async def setup(websocket: WebSocket):
     """
     update_dredentials()
     
-    # Also refresh Bedrock clients for knowledge base operations
-    refresh_bedrock_clients()
+    # Refresh Bedrock agent client
+    refresh_bedrock_agent_client()
     
     # Initialize CloudWatch logger if available
     try:
@@ -348,7 +353,7 @@ async def setup(websocket: WebSocket):
     def wrapped_query_knowledge_base(query, max_results=5):
         try:
             print(f"KNOWLEDGE BASE QUERY CALLED: '{query}'")
-            refresh_bedrock_clients()  # Refresh credentials before calling
+            refresh_bedrock_agent_client()  # Refresh credentials before calling
             
             print(f"Calling query_knowledge_base with query: '{query}', max_results: {max_results}")
             result = query_knowledge_base(query, max_results)
@@ -397,7 +402,7 @@ async def setup(websocket: WebSocket):
     def wrapped_get_document_by_id(document_id):
         try:
             print(f"GET DOCUMENT CALLED with ID: {document_id}")
-            refresh_bedrock_clients()  # Refresh credentials before calling
+            refresh_bedrock_agent_client()  # Refresh credentials before calling
             
             print(f"Calling get_document_by_id with document_id: {document_id}")
             result = get_document_by_id(document_id)
@@ -439,7 +444,7 @@ async def setup(websocket: WebSocket):
     def wrapped_search_documents(keywords, document_type=None, max_results=10):
         try:
             print(f"SEARCH DOCUMENTS CALLED with keywords: '{keywords}', type: {document_type}")
-            refresh_bedrock_clients()  # Refresh credentials before calling
+            refresh_bedrock_agent_client()  # Refresh credentials before calling
             
             print(f"Calling search_documents with keywords: '{keywords}', document_type: {document_type}, max_results: {max_results}")
             result = search_documents(keywords, document_type, max_results)
@@ -511,6 +516,51 @@ async def setup(websocket: WebSocket):
             context_aggregator.assistant(),
         ]
     )
+    
+    # Set up message handler for configuration messages
+    async def handle_config_message(message):
+        try:
+            # Parse the message as JSON
+            config = json.loads(message)
+            
+            # Check if this is a configuration message
+            if config.get('type') == 'config':
+                print(f"Processing configuration message: {config}")
+                
+                # Extract Bedrock agent configuration
+                agent_id = config.get('bedrockAgentId')
+                agent_alias_id = config.get('bedrockAgentAliasId')
+                
+                # Configure the Bedrock agent in the LLM service
+                if agent_id and agent_alias_id:
+                    print(f"Setting Bedrock agent configuration: agent_id={agent_id}, agent_alias_id={agent_alias_id}")
+                    llm.set_bedrock_agent_config(agent_id, agent_alias_id)
+        except Exception as e:
+            print(f"Error handling configuration message: {e}")
+            traceback.print_exc()
+    
+    # Register the message handler with the transport
+    if hasattr(transport, 'websocket'):
+        # Set up a message handler for the WebSocket
+        original_receive = transport.websocket.receive
+        
+        async def receive_wrapper():
+            message = await original_receive()
+            
+            # Check if this is a text message that might be a configuration
+            if message.get('type') == 'websocket.receive' and 'text' in message:
+                text = message.get('text', '')
+                if text.startswith('{'):
+                    try:
+                        await handle_config_message(text)
+                    except Exception as e:
+                        print(f"Error in receive_wrapper: {e}")
+                        traceback.print_exc()
+            
+            return message
+        
+        # Replace the receive method with our wrapper
+        transport.websocket.receive = receive_wrapper
 
     # Create pipeline task
     task = PipelineTask(

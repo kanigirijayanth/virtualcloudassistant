@@ -153,6 +153,50 @@ class Base64AudioSerializer(FrameSerializer):
         4. Create InputAudioRawFrame with processed audio
         """
         try:
+            # Check if this is a JSON message
+            if isinstance(data, str) and data.startswith('{'):
+                try:
+                    # Try to parse as JSON
+                    json_data = json.loads(data)
+                    
+                    # Handle configuration message
+                    if json_data.get('type') == 'config':
+                        print(f"Received configuration message: {json_data}")
+                        
+                        # Extract region
+                        region = json_data.get('region')
+                        
+                        # Extract Bedrock agent configuration
+                        agent_id = json_data.get('bedrockAgentId')
+                        agent_alias_id = json_data.get('bedrockAgentAliasId')
+                        
+                        # Initialize Bedrock agent client if region is provided
+                        if region:
+                            # Initialize Bedrock agent client if agent ID is provided
+                            if agent_id and agent_alias_id:
+                                from bedrock_agent_functions import initialize_bedrock_agent_client
+                                initialize_bedrock_agent_client(region)
+                                print(f"Initialized Bedrock agent client in region {region}")
+                                
+                                # Set the agent configuration in the LLM service
+                                # This will be handled by the pipeline later
+                                pass
+                        
+                        return None
+                    
+                    # Handle ping message
+                    if json_data.get('type') == 'ping':
+                        print("Received ping message")
+                        return None
+                    
+                    # Other JSON messages are not handled
+                    print(f"Unhandled JSON message: {json_data}")
+                    return None
+                    
+                except json.JSONDecodeError:
+                    # Not valid JSON, continue with base64 decoding
+                    pass
+            
             # Decode base64 data
             if isinstance(data, bytes):
                 data = data.decode('utf-8')

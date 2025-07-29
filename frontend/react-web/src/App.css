@@ -88,3 +88,12 @@
   width: 1rem;
   height: 1rem;
 }
+/* Project Documentation Badge */
+.project-doc-badge {
+  margin-bottom: 8px;
+}
+
+.project-doc-badge .badge {
+  font-size: 0.75rem;
+  padding: 0.35em 0.65em;
+}

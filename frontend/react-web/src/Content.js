@@ -21,13 +21,22 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { getCurrentUser, signOut } from 'aws-amplify/auth';
 import { Authenticator } from '@aws-amplify/ui-react';
-import { Navbar, Spinner, Modal, Button, Nav, NavDropdown } from 'react-bootstrap';
+import { Navbar, Spinner, Modal, Button, Nav, NavDropdown, Badge } from 'react-bootstrap';
 
 import Avatar from './Avatar'
 import KnowledgeBaseResult from './KnowledgeBaseResult';
 import './App.css';
-import { apiKey, apiUrl, avatarFileName, avatarJawboneName, knowledgeBaseId, bedrockRegion } from './aws-exports'
+import { 
+    apiKey, 
+    apiUrl, 
+    avatarFileName, 
+    avatarJawboneName, 
+    bedrockRegion,
+    bedrockAgentId,
+    bedrockAgentAliasId
+} from './aws-exports'
 import { logInfo, logError, logDebug, logWarn, KnowledgeBaseLogger, WebSocketLogger } from './utils/debugUtils';
+import { isProjectDocumentationQuery, formatBedrockAgentResponse, BedrockAgentLogger } from './utils/bedrockUtils';
 
 // Audio sample rate. It should match the same in the backend to avoid resampling overhead.
 const SAMPLE_RATE = 16000;
@@ -264,15 +273,16 @@ function Content({ signOut, user }) {
                         try {
                             const configMessage = {
                                 type: 'config',
-                                knowledgeBaseId: knowledgeBaseId,
-                                region: bedrockRegion
+                                region: bedrockRegion,
+                                bedrockAgentId: bedrockAgentId,
+                                bedrockAgentAliasId: bedrockAgentAliasId
                             };
                             
-                            logInfo('WebSocket', 'Sending knowledge base configuration', configMessage);
+                            logInfo('WebSocket', 'Sending Bedrock agent configuration', configMessage);
                             wsRef.current.send(JSON.stringify(configMessage));
                             WebSocketLogger.logMessage('sent', configMessage);
                         } catch (error) {
-                            logError('WebSocket', 'Error sending knowledge base configuration', error);
+                            logError('WebSocket', 'Error sending configuration', error);
                         }
                     }
                     
@@ -341,10 +351,21 @@ function Content({ signOut, user }) {
                                 });
                             }
                         } else if (chunk.event === 'text') {
+                            // Check if this is a project documentation query
+                            const isProjectDocQuery = isProjectDocumentationQuery(chunk.data);
+                            
+                            // Add the message to the UI
                             setMessages(messages => [...messages, {
                                 isMine: chunk.speaker === 'user',
-                                text: chunk.data
+                                text: chunk.data,
+                                isProjectDocQuery: isProjectDocQuery && chunk.speaker === 'user'
                             }]);
+                            
+                            // If this is a project documentation query from the user,
+                            // log it for debugging
+                            if (isProjectDocQuery && chunk.speaker === 'user') {
+                                logInfo('ProjectDoc', `Detected project documentation query: "${chunk.data}"`);
+                            }
                         } else if (chunk.event === 'kb_processing') {
                             // Handle knowledge base processing notification
                             try {
@@ -362,15 +383,15 @@ function Content({ signOut, user }) {
                                     processingData = { message: "Processing document query..." };
                                 }
                                 
-                                // Log knowledge base ID if available
-                                if (processingData.knowledgeBaseId) {
-                                    logInfo('KnowledgeBase', 'Using knowledge base ID', processingData.knowledgeBaseId);
+                                // Log Bedrock agent ID if available
+                                if (processingData.bedrockAgentId) {
+                                    logInfo('BedrockAgent', 'Using Bedrock agent ID', processingData.bedrockAgentId);
                                     
                                     // Verify it matches our configured ID
-                                    if (processingData.knowledgeBaseId !== knowledgeBaseId) {
-                                        logWarn('KnowledgeBase', 'Knowledge base ID mismatch', {
-                                            expected: knowledgeBaseId,
-                                            actual: processingData.knowledgeBaseId
+                                    if (processingData.bedrockAgentId !== bedrockAgentId) {
+                                        logWarn('BedrockAgent', 'Bedrock agent ID mismatch', {
+                                            expected: bedrockAgentId,
+                                            actual: processingData.bedrockAgentId
                                         });
                                     }
                                 } else {
@@ -599,6 +620,9 @@ function Content({ signOut, user }) {
                         <Nav.Link onClick={() => setHeaderVisible(false)}>
                             Immersive
                         </Nav.Link>
+                        <Nav.Link href="http://54.88.1.229:5000/" target="_blank">
+                            Knowledge Base
+                        </Nav.Link>
                         <Nav.Link onClick={() => {
                             setEngaged(!isEngaged)
                             if (isEngaged) {
@@ -638,7 +662,14 @@ function Content({ signOut, user }) {
                                     metadata={message.metadata}
                                 />
                             ) : (
-                                <div className="message-text">{message.text}</div>
+                                <div className="message-text">
+                                    {message.isProjectDocQuery && (
+                                        <div className="project-doc-badge mb-2">
+                                            <Badge bg="info">Project Documentation Query</Badge>
+                                        </div>
+                                    )}
+                                    {message.text}
+                                </div>
                             )}
                         </div>
                     ))}
