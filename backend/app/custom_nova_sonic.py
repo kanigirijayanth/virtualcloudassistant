@@ -253,174 +253,44 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                 self._start_heartbeat_audio()
                 
                 try:
-                    # Extract the actual query from args or kwargs
-                    # The LLM might pass multiple arguments, but we only need the query
-                    query = ""
-                    max_results = 5  # Default value
-                    document_type = None
-                    document_id = ""
+                    # Add timeout to prevent hanging
+                    async def run_with_timeout():
+                        return await asyncio.wait_for(
+                            self._execute_kb_function(name, original_func, args, kwargs),
+                            timeout=30.0  # 30 second timeout
+                        )
                     
-                    # Print the received arguments for debugging
-                    print(f"Function {name} called with args: {args}, kwargs: {kwargs}")
+                    result = await run_with_timeout()
                     
-                    # Check if tool_call_id is being passed and remove it from kwargs
-                    if "tool_call_id" in kwargs:
-                        print(f"Removing tool_call_id from kwargs: {kwargs['tool_call_id']}")
-                        tool_call_id = kwargs.pop("tool_call_id")
-                    else:
-                        tool_call_id = None
-                        
-                    # Extract parameters based on function name
-                    if name == "query_knowledge_base":
-                        # Handle both positional and keyword arguments
-                        if args and len(args) > 0:
-                            query = args[0]
-                        elif "query" in kwargs:
-                            query = kwargs["query"]
-                        else:
-                            query = ""
-                            
-                        # Set a default value for max_results
-                        max_results = 5
-                        
-                        # Only use the second argument if it's actually an integer or can be converted to one
-                        if len(args) > 1:
-                            if isinstance(args[1], int):
-                                max_results = args[1]
-                            else:
-                                try:
-                                    max_results = int(args[1])
-                                except (ValueError, TypeError):
-                                    print(f"Warning: Invalid max_results value in args: {args[1]}, using default value of 5")
-                        elif "max_results" in kwargs:
-                            if isinstance(kwargs["max_results"], int):
-                                max_results = kwargs["max_results"]
-                            else:
-                                try:
-                                    max_results = int(kwargs["max_results"])
-                                except (ValueError, TypeError):
-                                    print(f"Warning: Invalid max_results value in kwargs: {kwargs['max_results']}, using default value of 5")
-                            
-                    elif name == "get_document_by_id":
-                        if args and len(args) > 0:
-                            document_id = args[0]
-                        elif "document_id" in kwargs:
-                            document_id = kwargs["document_id"]
-                            
-                    elif name == "search_documents":
-                        if args and len(args) > 0:
-                            query = args[0]  # keywords
-                        elif "keywords" in kwargs:
-                            query = kwargs["keywords"]
-                            
-                        if len(args) > 1:
-                            document_type = args[1]
-                        elif "document_type" in kwargs:
-                            document_type = kwargs["document_type"]
-                            
-                        if len(args) > 2:
-                            max_results = args[2]
-                        elif "max_results" in kwargs:
-                            # Ensure max_results is an integer
-                            if isinstance(kwargs["max_results"], dict):
-                                print(f"WARNING: max_results is a dictionary: {kwargs['max_results']}, using default value of 10")
-                                max_results = 10
-                            else:
-                                max_results = kwargs["max_results"]
+                    # Stop the heartbeat audio after getting result
+                    self._stop_heartbeat_audio()
+                    self._processing_kb_query = False
                     
-                    # First send a processing notification to the frontend
-                    await self._send_json_to_client({
-                        "event": "kb_processing",
-                        "data": json.dumps({
-                            "status": "processing",
-                            "message": f"Processing {name} request...",
-                            "query": query or document_id
+                    return result
+                    
+                except asyncio.TimeoutError:
+                    # Handle timeout
+                    self._stop_heartbeat_audio()
+                    self._processing_kb_query = False
+                    
+                    error_msg = f"Knowledge base function {name} timed out after 30 seconds"
+                    print(error_msg)
+                    
+                    if CLOUDWATCH_LOGGING_ENABLED:
+                        log_error(error_msg, {
+                            "function": name,
+                            "args": str(args),
+                            "kwargs": str(kwargs)
                         })
-                    })
                     
-                    # Call the original function with the correct parameters
-                    start_time = time.time()
-                    
-                    # Handle different function signatures
-                    if name == "query_knowledge_base":
-                        print(f"Calling query_knowledge_base with query: '{query}', max_results: {max_results}")
-                        result = original_func(query, max_results)
-                    elif name == "get_document_by_id":
-                        print(f"Calling get_document_by_id with document_id: '{document_id}'")
-                        result = original_func(document_id)
-                    elif name == "search_documents":
-                        print(f"Calling search_documents with keywords: '{query}', document_type: {document_type}, max_results: {max_results}")
-                        result = original_func(query, document_type, max_results)
-                    else:
-                        # Fallback
-                        # Remove tool_call_id from kwargs if present
-                        if "tool_call_id" in kwargs:
-                            print(f"Removing tool_call_id from kwargs for function {name}: {kwargs['tool_call_id']}")
-                            kwargs.pop("tool_call_id")
-                        result = original_func(*args, **kwargs)
-                        
-                    processing_time = time.time() - start_time
-                    
-                    print(f"Knowledge base function {name} completed in {processing_time:.2f} seconds")
-                    
-                    # Format the result for frontend display
-                    formatted_result = format_kb_response(result)
-                    
-                    # Send the formatted result to the frontend
-                    await self._send_json_to_client({
-                        "event": "knowledge_base",
-                        "data": json.dumps(formatted_result)
-                    })
-                    
-                    # Store the result for Nova Sonic to use
-                    self._last_kb_response = result
-                    self._kb_response_pending = True
-                    
-                    # Prepare a response for Nova Sonic
-                    if name == "query_knowledge_base" and result.get('status') == 'success' and 'generated_answer' in result:
-                        # Create a message for Nova Sonic that includes the generated answer
-                        nova_sonic_message = f"I found information in the knowledge base about '{query}'.\n\n{result['generated_answer']}"
-                        
-                        # Log the message being sent to Nova Sonic
-                        if CLOUDWATCH_LOGGING_ENABLED:
-                            log_nova_sonic_input(nova_sonic_message)
-                        
-                        # Stop the heartbeat audio after sending the result
-                        self._stop_heartbeat_audio()
-                        self._processing_kb_query = False
-                        
-                        # Return the original result for the LLM to process
-                        return {
-                            'status': 'success',
-                            'message': nova_sonic_message,
-                            'original_result': result
-                        }
-                    else:
-                        # For other cases or errors, create a generic message
-                        if result.get('status') == 'error':
-                            nova_sonic_message = f"I encountered an error while searching the knowledge base: {result.get('message', 'Unknown error')}"
-                        elif result.get('status') == 'no_relevant_documents':
-                            nova_sonic_message = f"I searched the knowledge base for information about '{query}', but couldn't find any relevant documents."
-                        else:
-                            nova_sonic_message = f"I found some information in the knowledge base that might be relevant to '{query}', but I couldn't generate a comprehensive answer."
-                        
-                        # Log the message being sent to Nova Sonic
-                        if CLOUDWATCH_LOGGING_ENABLED:
-                            log_nova_sonic_input(nova_sonic_message)
-                        
-                        # Stop the heartbeat audio after sending the result
-                        self._stop_heartbeat_audio()
-                        self._processing_kb_query = False
-                        
-                        # Return the original result for the LLM to process
-                        return {
-                            'status': result.get('status', 'unknown'),
-                            'message': nova_sonic_message,
-                            'original_result': result
-                        }
-                    
+                    return {
+                        'status': 'error',
+                        'message': f"The knowledge base query timed out. Please try again with a simpler question.",
+                        'error': 'timeout'
+                    }
+                
                 except Exception as e:
-                    # Stop the heartbeat audio in case of error
+                    # Handle general exceptions
                     self._stop_heartbeat_audio()
                     self._processing_kb_query = False
                     
@@ -437,13 +307,9 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                             "traceback": traceback.format_exc()
                         })
                     
-                    # Create an error message for Nova Sonic
-                    nova_sonic_message = f"I encountered an error while trying to search the knowledge base: {str(e)}"
-                    
-                    # Return an error result
                     return {
                         'status': 'error',
-                        'message': nova_sonic_message,
+                        'message': f"I encountered an error while trying to search the knowledge base: {str(e)}",
                         'error': str(e)
                     }
             
@@ -461,10 +327,13 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
     
     def _stop_heartbeat_audio(self):
         """Stop sending heartbeat audio frames."""
+        print("Stopping heartbeat audio...")
         self._heartbeat_running = False
         if hasattr(self, '_heartbeat_task') and self._heartbeat_task is not None:
-            self._heartbeat_task.cancel()
+            if not self._heartbeat_task.done():
+                self._heartbeat_task.cancel()
             self._heartbeat_task = None
+            print("Heartbeat audio stopped")
     
     async def _send_heartbeat_audio(self):
         """Send heartbeat audio frames at regular intervals to prevent buffer starvation."""
@@ -472,22 +341,22 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
             # Send initial audio frame immediately
             await self._send_silent_audio(500)  # 500ms silent frame
             
-            # Then send frames at regular intervals
+            # Then send frames at reduced intervals to prevent connection overload
             while self._heartbeat_running and self.transport:
-                # Send a 200ms silent frame every 2 seconds
+                # Send a 200ms silent frame every 5 seconds (reduced from 2 seconds)
                 await self._send_silent_audio(200)
-                await asyncio.sleep(2)
+                await asyncio.sleep(5)
                 
-                # Send a 500ms silent frame every 5 seconds
+                # Send a 500ms silent frame every 10 seconds (reduced frequency)
                 await self._send_silent_audio(500)
-                await asyncio.sleep(3)
+                await asyncio.sleep(5)
                 
-                # Send a 1000ms silent frame every 10 seconds
+                # Send a 1000ms silent frame every 15 seconds (reduced frequency)
                 await self._send_silent_audio(1000)
                 await asyncio.sleep(5)
         except asyncio.CancelledError:
             # Task was cancelled, clean up
-            pass
+            print("Heartbeat audio task cancelled")
         except Exception as e:
             error_msg = f"Error in heartbeat audio task: {str(e)}"
             print(error_msg)
