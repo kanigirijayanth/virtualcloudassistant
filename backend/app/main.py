@@ -45,8 +45,6 @@ import traceback
 import boto3
 import os
 import pandas as pd
-import psutil
-import gc
 from datetime import datetime
 from pathlib import Path
 
@@ -76,26 +74,11 @@ from custom_nova_sonic import CustomNovaSonicService
 SAMPLE_RATE = 16000
 API_KEY = "sk_live_51NzQWHSIANER2vP8kTGkZQBfwwQCzVQT"
 
-# Global variable to track last credential refresh time
-_last_credential_refresh = 0
-_credential_refresh_interval = 300  # 5 minutes
-
 def update_dredentials():
     """
     Updates AWS credentials by fetching from ECS container metadata endpoint.
     Used in containerized environments to maintain fresh credentials.
-    Now includes caching to prevent excessive refresh calls.
     """
-    global _last_credential_refresh
-    import time
-    
-    current_time = time.time()
-    
-    # Only refresh if more than 5 minutes have passed since last refresh
-    if current_time - _last_credential_refresh < _credential_refresh_interval:
-        print(f"Skipping credential refresh - last refresh was {current_time - _last_credential_refresh:.1f} seconds ago")
-        return
-    
     try:
         uri = os.environ.get("AWS_CONTAINER_CREDENTIALS_RELATIVE_URI")
         if uri:
@@ -107,7 +90,6 @@ def update_dredentials():
                     os.environ["AWS_ACCESS_KEY_ID"] = creds["AccessKeyId"]
                     os.environ["AWS_SECRET_ACCESS_KEY"] = creds["SecretAccessKey"]
                     os.environ["AWS_SESSION_TOKEN"] = creds["Token"]
-                    _last_credential_refresh = current_time
                     print("AWS credentials refreshed successfully", flush=True)
                 else:
                     print(f"Failed to fetch fresh credentials: {response.status_code}", flush=True)
@@ -510,13 +492,12 @@ async def setup(websocket: WebSocket):
     llm.register_function("get_document_by_id", wrapped_get_document_by_id)
     llm.register_function("search_documents", wrapped_search_documents)
 
-    # Set up conversation context with message limits to prevent memory bloat
+    # Set up conversation context
     context = OpenAILLMContext(
         messages=[
             {"role": "system", "content": f"{system_instruction}"},
         ],
         tools=tools,
-        max_messages=20  # Limit to last 20 messages to prevent memory accumulation
     )
     context_aggregator = llm.create_context_aggregator(context)
 
@@ -581,7 +562,7 @@ async def setup(websocket: WebSocket):
         # Replace the receive method with our wrapper
         transport.websocket.receive = receive_wrapper
 
-    # Create pipeline task with memory management
+    # Create pipeline task
     task = PipelineTask(
         pipeline,
         params=PipelineParams(
@@ -604,62 +585,13 @@ async def setup(websocket: WebSocket):
     async def on_client_disconnected(transport, client):
         """Handles client disconnection and cleanup."""
         print(f"Client disconnected")
-        
-        # Cancel the task
         await task.cancel()
-        
-        # Force cleanup
-        try:
-            # Stop any ongoing heartbeat tasks in the custom service
-            if hasattr(llm, '_stop_heartbeat_audio'):
-                llm._stop_heartbeat_audio()
-            
-            # Force garbage collection
-            gc.collect()
-            
-            # Log final memory state
-            memory_percent = psutil.virtual_memory().percent
-            print(f"Client disconnected - Final memory usage: {memory_percent:.1f}%")
-            
-        except Exception as e:
-            print(f"Error during cleanup: {str(e)}")
-
-    # Counter for tracking interactions for memory management
-    interaction_counter = 0
 
     @transcript.event_handler("on_transcript_update")
     async def handle_transcript_update(processor, frame):
-        """Logs transcript updates with timestamps and manages memory."""
-        nonlocal interaction_counter
-        
+        """Logs transcript updates with timestamps."""
         for message in frame.messages:
             print(f"Transcript: [{message.timestamp}] {message.role}: {message.content}")
-            
-            # Increment interaction counter for memory management
-            if message.role in ["user", "assistant"]:
-                interaction_counter += 1
-                
-                # Force garbage collection every 5 interactions
-                if interaction_counter % 5 == 0:
-                    gc.collect()
-                    
-                    # Monitor memory usage
-                    try:
-                        memory_percent = psutil.virtual_memory().percent
-                        memory_used_mb = psutil.virtual_memory().used / (1024 * 1024)
-                        print(f"Memory usage: {memory_percent:.1f}% ({memory_used_mb:.1f} MB) - Interaction #{interaction_counter}")
-                        
-                        if memory_percent > 80:
-                            print(f"WARNING: High memory usage detected: {memory_percent:.1f}%")
-                            # Force additional cleanup
-                            gc.collect()
-                            
-                        # Reset counter to prevent overflow
-                        if interaction_counter >= 100:
-                            interaction_counter = 0
-                            
-                    except Exception as e:
-                        print(f"Error monitoring memory: {str(e)}")
             
             # Check if this is a knowledge base related message
             if message.role == "assistant" and any(kb_term in message.content.lower() for kb_term in 
