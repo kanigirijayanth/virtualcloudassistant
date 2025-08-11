@@ -29,6 +29,7 @@ from typing import Optional
 from pydantic import BaseModel
 import base64
 import json
+import traceback
 from loguru import logger
 
 from pipecat.frames.frames import (
@@ -93,7 +94,7 @@ class Base64AudioSerializer(FrameSerializer):
         self._sample_rate = self._params.sample_rate or frame.audio_in_sample_rate
 
     async def serialize(self, frame: Frame) -> str | bytes | None:
-        """Serializes a Pipecat frame to base64-encoded format.
+        """Serializes a Pipecat frame to base64-encoded format with improved error handling.
 
         Args:
             frame: The Pipecat frame to serialize (AudioRawFrame or StartInterruptionFrame)
@@ -112,18 +113,77 @@ class Base64AudioSerializer(FrameSerializer):
                 return json.dumps(response)
 
             elif isinstance(frame, AudioRawFrame):
-                # Resample if needed
+                # Validate audio data
+                if not frame.audio or len(frame.audio) == 0:
+                    logger.warning("Empty audio frame received, skipping")
+                    return None
+                
+                # Additional validation for audio quality and connection stability
+                if len(frame.audio) < 32:  # Minimum frame size check
+                    logger.warning("Audio frame too small, skipping")
+                    return None
+                
+                # Check for audio corruption (all zeros or extreme values)
+                import numpy as np
+                try:
+                    audio_array = np.frombuffer(frame.audio, dtype=np.int16)
+                    if np.all(audio_array == 0):
+                        logger.warning("Audio frame contains only silence, skipping")
+                        return None
+                    
+                    # Check for clipping or extreme values that might cause crackling
+                    max_val = np.max(np.abs(audio_array))
+                    if max_val > 30000:  # Close to 16-bit limit
+                        logger.warning(f"Audio frame has high amplitude ({max_val}), may cause crackling")
+                        # Normalize to prevent crackling
+                        audio_array = (audio_array * 0.8).astype(np.int16)
+                        frame.audio = audio_array.tobytes()
+                        
+                except Exception as audio_check_error:
+                    logger.warning(f"Audio validation failed: {audio_check_error}, proceeding anyway")
+                
+                # Resample if needed with improved error handling
                 if frame.sample_rate != self._target_sample_rate:
-                    resampled_data = await self._output_resampler.resample(
-                        frame.audio,
-                        frame.sample_rate,
-                        self._target_sample_rate
-                    )
+                    try:
+                        resampled_data = await self._output_resampler.resample(
+                            frame.audio,
+                            frame.sample_rate,
+                            self._target_sample_rate
+                        )
+                        
+                        # Validate resampled data quality
+                        if not resampled_data or len(resampled_data) < 32:
+                            logger.warning("Resampled audio data too small, using original")
+                            resampled_data = frame.audio
+                            
+                    except Exception as e:
+                        logger.error(f"Audio resampling failed: {e}, using original audio")
+                        resampled_data = frame.audio
                 else:
                     resampled_data = frame.audio
 
-                # Encode to base64
-                encoded_data = base64.b64encode(resampled_data).decode('utf-8')
+                # Final validation of resampled data
+                if not resampled_data or len(resampled_data) == 0:
+                    logger.warning("Empty resampled audio data, skipping")
+                    return None
+
+                # Encode to base64 with error handling
+                try:
+                    encoded_data = base64.b64encode(resampled_data).decode('utf-8')
+                    
+                    # Validate encoded data
+                    if not encoded_data:
+                        logger.warning("Base64 encoding resulted in empty data")
+                        return None
+                    
+                    # Check encoded data size to prevent WebSocket message size issues
+                    if len(encoded_data) > 1000000:  # 1MB limit
+                        logger.warning(f"Encoded audio data too large ({len(encoded_data)} bytes), skipping")
+                        return None
+                        
+                except Exception as e:
+                    logger.error(f"Base64 encoding failed: {e}")
+                    return None
 
                 response = {"event": "media", "data": encoded_data}
                 return json.dumps(response)
@@ -134,6 +194,7 @@ class Base64AudioSerializer(FrameSerializer):
 
         except Exception as e:
             logger.error(f"Error serializing audio frame: {e}")
+            traceback.print_exc()
             return None
 
     async def deserialize(self, data: str | bytes) -> Frame | None:
@@ -201,19 +262,46 @@ class Base64AudioSerializer(FrameSerializer):
             if isinstance(data, bytes):
                 data = data.decode('utf-8')
             
-            decoded_data = base64.b64decode(data)
+            # Validate base64 data
+            if not data or len(data.strip()) == 0:
+                logger.warning("Empty audio data received")
+                return None
+            
+            try:
+                decoded_data = base64.b64decode(data)
+            except Exception as e:
+                logger.error(f"Base64 decode failed: {e}")
+                return None
+            
+            # Validate decoded data length
+            if len(decoded_data) == 0:
+                logger.warning("Decoded audio data is empty")
+                return None
             
             # Convert to numpy array (assuming 16-bit PCM)
             import numpy as np
-            audio_data = np.frombuffer(decoded_data, dtype=np.int16)
+            try:
+                audio_data = np.frombuffer(decoded_data, dtype=np.int16)
+            except Exception as e:
+                logger.error(f"Failed to convert audio data to numpy array: {e}")
+                return None
+
+            # Validate audio data
+            if len(audio_data) == 0:
+                logger.warning("Audio data array is empty")
+                return None
 
             # Resample if needed
             if self._target_sample_rate != self._sample_rate:
-                audio_data = await self._input_resampler.resample(
-                    audio_data,
-                    self._target_sample_rate,
-                    self._sample_rate
-                )
+                try:
+                    audio_data = await self._input_resampler.resample(
+                        audio_data,
+                        self._target_sample_rate,
+                        self._sample_rate
+                    )
+                except Exception as e:
+                    logger.error(f"Input audio resampling failed: {e}")
+                    return None
 
             # Convert back to bytes
             decoded_data = audio_data.tobytes()

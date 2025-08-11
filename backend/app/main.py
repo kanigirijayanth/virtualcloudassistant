@@ -103,7 +103,8 @@ from aws_account_functions import (
     get_accounts_by_classification,
     get_classification_summary,
     get_management_type_summary,
-    get_total_cost,
+    count_all_aws_accounts,
+    calculate_total_cost_rupees,
     get_account_status_summary,
     get_accounts_by_year,
     get_accounts_by_year_summary
@@ -123,14 +124,38 @@ from bedrock_kb_functions import (
     search_documents
 )
 
+# Import the new date-based functions
+from aws_account_functions import (
+    get_account_details,
+    get_accounts_by_classification,
+    get_classification_summary,
+    get_management_type_summary,
+    count_all_aws_accounts,
+    calculate_total_cost_rupees,
+    get_account_status_summary,
+    get_accounts_by_year,
+    get_accounts_by_year_summary,
+    get_accounts_by_date_range,
+    get_accounts_by_month_year,
+    get_accounts_by_specific_date,
+    get_provisioning_date_summary
+)
+
 # Update the AWS account service with the absolute path to the CSV file
 csv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "AWS_AccountDetails.csv")
 print(f"Setting AWS account service CSV path to: {csv_path}")
+print(f"CSV file exists: {os.path.exists(csv_path)}")
+
 aws_service = AWSAccountService(csv_path)
+
+# Verify the service is working
+print(f"AWS service initialized. Total accounts: {aws_service.get_total_account_count()}")
+print(f"AWS service total cost: {aws_service.get_total_cost()}")
 
 # Set the aws_service in aws_account_functions
 import aws_account_functions
 aws_account_functions.aws_service = aws_service
+print("AWS service set in aws_account_functions module")
 
 # Define function schemas for AWS account operations
 account_details_function = FunctionSchema(
@@ -175,9 +200,16 @@ management_type_summary_function = FunctionSchema(
     required=[]
 )
 
+count_all_accounts_function = FunctionSchema(
+    name="count_all_aws_accounts",
+    description="Get the COUNT/NUMBER of AWS accounts (returns a number like 123, NOT cost/money).",
+    properties={},
+    required=[]
+)
+
 total_cost_function = FunctionSchema(
-    name="get_total_cost",
-    description="Get the total cost of all AWS accounts in Indian Rupees.",
+    name="calculate_total_cost_rupees",
+    description="Get the COST/EXPENSE of all AWS accounts in Indian Rupees (returns money like 1512900, NOT count).",
     properties={},
     required=[]
 )
@@ -204,6 +236,58 @@ accounts_by_year_function = FunctionSchema(
 accounts_by_year_summary_function = FunctionSchema(
     name="get_accounts_by_year_summary",
     description="Get a summary of AWS accounts provisioned by year, showing count for each year.",
+    properties={},
+    required=[]
+)
+
+# New date-based function schemas
+accounts_by_date_range_function = FunctionSchema(
+    name="get_accounts_by_date_range",
+    description="Get all AWS accounts provisioned within a specific date range.",
+    properties={
+        "start_date": {
+            "type": "string",
+            "description": "Start date in DD-MMM-YY format (e.g., '01-Jan-19', '15-Mar-20').",
+        },
+        "end_date": {
+            "type": "string",
+            "description": "End date in DD-MMM-YY format (e.g., '31-Dec-19', '30-Jun-20').",
+        }
+    },
+    required=["start_date", "end_date"]
+)
+
+accounts_by_month_year_function = FunctionSchema(
+    name="get_accounts_by_month_year",
+    description="Get all AWS accounts provisioned in a specific month and year.",
+    properties={
+        "month": {
+            "type": "string",
+            "description": "Month number (1-12, where 1=January, 2=February, etc.).",
+        },
+        "year": {
+            "type": "string",
+            "description": "Year (e.g., '2019', '2020', '2021').",
+        }
+    },
+    required=["month", "year"]
+)
+
+accounts_by_specific_date_function = FunctionSchema(
+    name="get_accounts_by_specific_date",
+    description="Get all AWS accounts provisioned on a specific date.",
+    properties={
+        "date": {
+            "type": "string",
+            "description": "Specific date in DD-MMM-YY format (e.g., '31-Mar-19', '15-Apr-20').",
+        }
+    },
+    required=["date"]
+)
+
+provisioning_date_summary_function = FunctionSchema(
+    name="get_provisioning_date_summary",
+    description="Get a comprehensive summary of AWS account provisioning dates, including date range and monthly breakdown.",
     properties={},
     required=[]
 )
@@ -264,10 +348,17 @@ tools = ToolsSchema(standard_tools=[
     accounts_by_classification_function,
     classification_summary_function,
     management_type_summary_function,
+    count_all_accounts_function,
     total_cost_function,
     account_status_summary_function,
     accounts_by_year_function,
     accounts_by_year_summary_function,
+    
+    # New date-based AWS Account functions
+    accounts_by_date_range_function,
+    accounts_by_month_year_function,
+    accounts_by_specific_date_function,
+    provisioning_date_summary_function,
     
     # Bedrock Knowledge Base functions
     query_kb_function,
@@ -309,22 +400,29 @@ async def setup(websocket: WebSocket):
     
     system_instruction = Path('prompt.txt').read_text() + f"\n{AWSNovaSonicLLMService.AWAIT_TRIGGER_ASSISTANT_RESPONSE_INSTRUCTION}"
 
-    # Configure WebSocket transport with audio processing capabilities
+    # Configure WebSocket transport with audio processing capabilities and improved stability
     transport = FastAPIWebsocketTransport(websocket, FastAPIWebsocketParams(
         serializer=Base64AudioSerializer(),
         audio_in_enabled=True,
         audio_out_enabled=True,
         add_wav_header=False,
-        vad_analyzer=SileroVADAnalyzer(
-            params=VADParams(stop_secs=0.5)
-        ),
+        vad_analyzer=None,  # Disable VAD to prevent crackling
         transcription_enabled=True
     ))
 
-    # Configure AWS Nova Sonic parameters
+    # Configure AWS Nova Sonic parameters with optimized settings for voice quality
+    # Fixed: Removed invalid parameters that were causing server errors
     params = Params()
     params.input_sample_rate = SAMPLE_RATE
     params.output_sample_rate = SAMPLE_RATE
+    params.input_sample_size = 16
+    params.output_sample_size = 16
+    params.input_channel_count = 1
+    params.output_channel_count = 1
+    # Optimize for voice quality and reduce crackling
+    params.max_tokens = 2048  # Reduced for faster response
+    params.temperature = 0.6  # Slightly lower for more consistent output
+    params.top_p = 0.85       # Reduced for better quality
 
     # Initialize LLM service
     llm = CustomNovaSonicService(
@@ -340,14 +438,37 @@ async def setup(websocket: WebSocket):
     llm.set_transport(transport)
 
     # Register AWS account functions
+    print("Registering AWS account functions...")
     llm.register_function("get_account_details", get_account_details)
+    print("Registered: get_account_details")
     llm.register_function("get_accounts_by_classification", get_accounts_by_classification)
+    print("Registered: get_accounts_by_classification")
     llm.register_function("get_classification_summary", get_classification_summary)
+    print("Registered: get_classification_summary")
     llm.register_function("get_management_type_summary", get_management_type_summary)
-    llm.register_function("get_total_cost", get_total_cost)
+    print("Registered: get_management_type_summary")
+    llm.register_function("count_all_aws_accounts", count_all_aws_accounts)
+    print("Registered: count_all_aws_accounts")
+    llm.register_function("calculate_total_cost_rupees", calculate_total_cost_rupees)
+    print("Registered: calculate_total_cost_rupees")
     llm.register_function("get_account_status_summary", get_account_status_summary)
+    print("Registered: get_account_status_summary")
     llm.register_function("get_accounts_by_year", get_accounts_by_year)
+    print("Registered: get_accounts_by_year")
     llm.register_function("get_accounts_by_year_summary", get_accounts_by_year_summary)
+    print("Registered: get_accounts_by_year_summary")
+    
+    # Register new date-based functions
+    llm.register_function("get_accounts_by_date_range", get_accounts_by_date_range)
+    print("Registered: get_accounts_by_date_range")
+    llm.register_function("get_accounts_by_month_year", get_accounts_by_month_year)
+    print("Registered: get_accounts_by_month_year")
+    llm.register_function("get_accounts_by_specific_date", get_accounts_by_specific_date)
+    print("Registered: get_accounts_by_specific_date")
+    llm.register_function("get_provisioning_date_summary", get_provisioning_date_summary)
+    print("Registered: get_provisioning_date_summary")
+    
+    print("All AWS account functions registered successfully")
     
     # Define wrapper functions that handle credential refresh with improved logging
     def wrapped_query_knowledge_base(query, max_results=5):
@@ -562,7 +683,7 @@ async def setup(websocket: WebSocket):
         # Replace the receive method with our wrapper
         transport.websocket.receive = receive_wrapper
 
-    # Create pipeline task
+    # Create pipeline task with improved resource management
     task = PipelineTask(
         pipeline,
         params=PipelineParams(
@@ -577,30 +698,52 @@ async def setup(websocket: WebSocket):
     @transport.event_handler("on_client_connected")
     async def on_client_connected(transport, client):
         """Handles new client connections and initiates conversation."""
-        print(f"Client connected")
-        await task.queue_frames([context_aggregator.user().get_context_frame()])
-        await llm.trigger_assistant_response()
+        print(f"Client connected: {client}")
+        try:
+            await task.queue_frames([context_aggregator.user().get_context_frame()])
+            await llm.trigger_assistant_response()
+        except Exception as e:
+            print(f"Error in on_client_connected: {str(e)}")
+            traceback.print_exc()
 
     @transport.event_handler("on_client_disconnected")
     async def on_client_disconnected(transport, client):
         """Handles client disconnection and cleanup."""
-        print(f"Client disconnected")
-        await task.cancel()
+        print(f"Client disconnected: {client}")
+        try:
+            await task.cancel()
+        except Exception as e:
+            print(f"Error in on_client_disconnected: {str(e)}")
+            traceback.print_exc()
+
+    @transport.event_handler("on_connection_error")
+    async def on_connection_error(transport, error):
+        """Handles WebSocket connection errors."""
+        print(f"WebSocket connection error: {str(error)}")
+        traceback.print_exc()
+        try:
+            await task.cancel()
+        except Exception as e:
+            print(f"Error during connection error cleanup: {str(e)}")
 
     @transcript.event_handler("on_transcript_update")
     async def handle_transcript_update(processor, frame):
-        """Logs transcript updates with timestamps."""
-        for message in frame.messages:
-            print(f"Transcript: [{message.timestamp}] {message.role}: {message.content}")
-            
-            # Check if this is a knowledge base related message
-            if message.role == "assistant" and any(kb_term in message.content.lower() for kb_term in 
-                                                ["knowledge base", "documentation", "found information", "sop", "lld", "hld"]):
-                try:
-                    from cloudwatch_logger import log_nova_sonic_input
-                    log_nova_sonic_input(f"Nova Sonic response: {message.content}")
-                except ImportError:
-                    pass
+        """Logs transcript updates with timestamps and error handling."""
+        try:
+            for message in frame.messages:
+                print(f"Transcript: [{message.timestamp}] {message.role}: {message.content}")
+                
+                # Check if this is a knowledge base related message
+                if message.role == "assistant" and any(kb_term in message.content.lower() for kb_term in 
+                                                    ["knowledge base", "documentation", "found information", "sop", "lld", "hld"]):
+                    try:
+                        from cloudwatch_logger import log_nova_sonic_input
+                        log_nova_sonic_input(f"Nova Sonic response: {message.content}")
+                    except ImportError:
+                        pass
+        except Exception as e:
+            print(f"Error in transcript handler: {str(e)}")
+            traceback.print_exc()
 
     runner = PipelineRunner(handle_sigint=False, force_gc=True)
     await runner.run(task)
@@ -617,13 +760,33 @@ async def health(request: Request):
 async def websocket_endpoint(websocket: WebSocket):
     """
     WebSocket endpoint handling client connections.
-    Validates API key and sets up the audio processing pipeline.
+    Validates API key and sets up the audio processing pipeline with improved error handling.
     """
     protocol = websocket.headers.get('sec-websocket-protocol')
     print('protocol ', protocol)
 
-    await websocket.accept(subprotocol=API_KEY)
-    await setup(websocket)
+    try:
+        await websocket.accept(subprotocol=API_KEY)
+        print("WebSocket connection accepted")
+        
+        # Add connection health check
+        try:
+            await websocket.send_text(json.dumps({"event": "connection_established", "status": "ready"}))
+        except Exception as e:
+            print(f"Failed to send connection confirmation: {str(e)}")
+            return
+        
+        await setup(websocket)
+    except Exception as e:
+        print(f"WebSocket connection error: {str(e)}")
+        traceback.print_exc()
+        try:
+            if not websocket.client_state.name == 'DISCONNECTED':
+                await websocket.close(code=1011, reason="Internal server error")
+        except Exception as close_error:
+            print(f"Error closing WebSocket: {str(close_error)}")
+    finally:
+        print("WebSocket connection cleanup completed")
 
 # Configure and start uvicorn server
 server = uvicorn.Server(uvicorn.Config(

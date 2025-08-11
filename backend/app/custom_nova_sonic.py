@@ -96,8 +96,8 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
         # Set flag that we're processing an agent query
         self._processing_agent_query = True
         
-        # Start sending heartbeat audio frames to prevent buffer starvation
-        self._start_heartbeat_audio()
+        # Don't start heartbeat audio - it can cause voice cracking
+        # self._start_heartbeat_audio()
         
         try:
             # First send a processing notification to the frontend
@@ -249,8 +249,8 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                 # Set flag that we're processing a knowledge base query
                 self._processing_kb_query = True
                 
-                # Start sending heartbeat audio frames to prevent buffer starvation
-                self._start_heartbeat_audio()
+                # Don't start heartbeat audio - it can cause voice cracking
+                # self._start_heartbeat_audio()
                 
                 try:
                     # Extract the actual query from args or kwargs
@@ -455,16 +455,21 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
     
     def _start_heartbeat_audio(self):
         """Start sending heartbeat audio frames to prevent buffer starvation."""
-        if not hasattr(self, '_heartbeat_task') or self._heartbeat_task is None:
-            self._heartbeat_running = True
-            self._heartbeat_task = asyncio.create_task(self._send_heartbeat_audio())
+        # DISABLED: Heartbeat audio can cause voice cracking issues
+        # Commenting out to prevent interference with Nova Sonic audio stream
+        pass
+        # if not hasattr(self, '_heartbeat_task') or self._heartbeat_task is None:
+        #     self._heartbeat_running = True
+        #     self._heartbeat_task = asyncio.create_task(self._send_heartbeat_audio())
     
     def _stop_heartbeat_audio(self):
         """Stop sending heartbeat audio frames."""
-        self._heartbeat_running = False
-        if hasattr(self, '_heartbeat_task') and self._heartbeat_task is not None:
-            self._heartbeat_task.cancel()
-            self._heartbeat_task = None
+        # DISABLED: Heartbeat audio can cause voice cracking issues
+        pass
+        # self._heartbeat_running = False
+        # if hasattr(self, '_heartbeat_task') and self._heartbeat_task is not None:
+        #     self._heartbeat_task.cancel()
+        #     self._heartbeat_task = None
     
     async def _send_heartbeat_audio(self):
         """Send heartbeat audio frames at regular intervals to prevent buffer starvation."""
@@ -509,16 +514,32 @@ class CustomNovaSonicService(AWSNovaSonicLLMService):
                     log_error(error_msg, {"exception": str(e)})
                 
     async def _send_json_to_client(self, data):
-        """Send JSON data to the client using the transport's websocket send_text method."""
+        """Send JSON data to the client using the transport's websocket send_text method with improved error handling."""
         if self.transport and hasattr(self.transport, 'websocket'):
             try:
-                await self.transport.websocket.send_text(json.dumps(data))
+                # Check if websocket is still open
+                if hasattr(self.transport.websocket, 'client_state') and self.transport.websocket.client_state.name != 'CONNECTED':
+                    print(f"WebSocket not connected, state: {self.transport.websocket.client_state.name}")
+                    return False
+                
+                # Add timeout to prevent hanging
+                import asyncio
+                await asyncio.wait_for(
+                    self.transport.websocket.send_text(json.dumps(data)),
+                    timeout=5.0  # 5 second timeout
+                )
                 return True
+            except asyncio.TimeoutError:
+                error_msg = "Timeout sending JSON to client"
+                print(error_msg)
+                if CLOUDWATCH_LOGGING_ENABLED:
+                    log_error(error_msg, {"data": str(data)})
+                return False
             except Exception as e:
                 error_msg = f"Error sending JSON to client: {str(e)}"
                 print(error_msg)
                 if CLOUDWATCH_LOGGING_ENABLED:
-                    log_error(error_msg, {"exception": str(e)})
+                    log_error(error_msg, {"exception": str(e), "data": str(data)})
                 return False
         return False
                 
